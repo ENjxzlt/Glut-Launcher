@@ -1,9 +1,11 @@
 package de.glut.launcher
 
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -188,10 +190,10 @@ class MainActivity : ComponentActivity() {
                 onOpenApps = { screen = Screen.APPS },
                 onOpenMenu = { screen = Screen.SETTINGS },
                 onOpenSearch = { screen = Screen.SEARCH },
-                onOpenWifi = { startSafely(Intent(Settings.ACTION_WIFI_SETTINGS)) },
+                onOpenWifi = ::openWifi,
                 onOpenProfile = ::openProfiles,
                 onOpenSettings = { startSafely(Intent(Settings.ACTION_SETTINGS)) },
-                onOpenBluetooth = { startSafely(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
+                onOpenBluetooth = ::openBluetooth,
                 onOpenAmazonHome = ::openAmazonHome,
             )
             Screen.APPS -> AppsScreen(
@@ -471,6 +473,56 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun openBluetooth() = openSettingsPage(
+        action = Settings.ACTION_BLUETOOTH_SETTINGS,
+        keywords = listOf("ControllersAndBluetooth", "BluetoothSettings", "Bluetooth", "Controllers"),
+        hint = t(
+            "Bluetooth findest du in den Fire-TV-Einstellungen unter „Controller und Bluetooth-Geräte“.",
+            "Bluetooth is under “Controllers & Bluetooth devices” in the Fire TV settings.",
+        ),
+    )
+
+    private fun openWifi() = openSettingsPage(
+        action = Settings.ACTION_WIFI_SETTINGS,
+        keywords = listOf("NetworkActivity", "WifiSettings", "Network", "Wifi"),
+        hint = t(
+            "WLAN findest du in den Fire-TV-Einstellungen unter „Netzwerk“.",
+            "Wi-Fi is under “Network” in the Fire TV settings.",
+        ),
+    )
+
+    /**
+     * Fire OS kennt viele Standard-Android-Einstellungsseiten nicht. Wir versuchen zuerst
+     * die Standard-Adresse, suchen dann in Amazons Einstellungs-Paketen nach einer passenden
+     * öffentlichen Seite und öffnen sonst die allgemeinen Einstellungen mit einem Hinweis.
+     */
+    private fun openSettingsPage(action: String, keywords: List<String>, hint: String) {
+        val standard = Intent(action)
+        if (standard.resolveActivity(packageManager) != null && startSafely(standard, quiet = true)) return
+        val component = findAmazonSettingsActivity(keywords)
+        if (component != null && startSafely(Intent().setComponent(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), quiet = true)) return
+        toast(hint)
+        startSafely(Intent(Settings.ACTION_SETTINGS))
+    }
+
+    private fun findAmazonSettingsActivity(keywords: List<String>): ComponentName? {
+        val activities = AMAZON_SETTINGS_PACKAGES.flatMap { pkg ->
+            runCatching { packageManager.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES).activities?.toList() }
+                .getOrNull().orEmpty()
+                .filter { it.exported && it.enabled }
+                .map { pkg to it.name }
+        }
+        // Stichwörter in Reihenfolge: das spezifischste zuerst.
+        for (keyword in keywords) {
+            val match = activities.firstOrNull { (_, name) ->
+                name.substringAfterLast('.').contains(keyword, ignoreCase = true) && !name.contains("Dialog", ignoreCase = true)
+            } ?: continue
+            Log.i(HomeRedirectService.TAG, "Settings page for $keyword: ${match.first}/${match.second}")
+            return ComponentName(match.first, match.second)
+        }
+        return null
+    }
+
     private fun startSafely(intent: Intent, quiet: Boolean = false): Boolean =
         try {
             startActivity(intent)
@@ -684,6 +736,12 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_QUICK_ACTIONS = "de.glut.launcher.QUICK_ACTIONS"
 
         private var lastWakeHandled = -60_000L
+
+        private val AMAZON_SETTINGS_PACKAGES = listOf(
+            "com.amazon.tv.settings.v2",
+            "com.amazon.tv.settings",
+            AppRepository.AMAZON_LAUNCHER,
+        )
         private const val NEW_FOLDER = "\u0000new"
     }
 }

@@ -11,6 +11,10 @@
 
     <!-- Ab Android 11 sieht eine App nur die Pakete, die sie hier anmeldet. -->
     <queries>
+        <!-- Amazons Einstellungsseiten (Bluetooth, Netzwerk) gezielt öffnen -->
+        <package android:name="com.amazon.tv.settings.v2" />
+        <package android:name="com.amazon.tv.settings" />
+        <package android:name="com.amazon.tv.launcher" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
