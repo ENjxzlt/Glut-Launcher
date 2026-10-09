@@ -72,11 +72,11 @@ fun KeyHint(key: String, label: String) {
             text = key,
             size = 9.sp,
             color = accent,
-            family = GeistMono,
+            family = Theme.clockFont,
             modifier = Modifier
                 .border(0.75.dp, accent, RoundedCornerShape(4.dp))
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         )
-        Txt(label, size = 10.sp, color = Gruv.fg4)
+        Txt(label, size = 10.sp, color = Theme.fg4)
     }
 }

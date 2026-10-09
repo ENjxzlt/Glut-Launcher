@@ -12,23 +12,25 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 
 /** Statischer Hintergrund. Bewusst ohne Animation, damit das Scrollen flüssig bleibt. */
 @Composable
-fun WallpaperBackground(wallpaper: Wallpaper, ground: Ground, accent: Color, modifier: Modifier = Modifier) {
+fun WallpaperBackground(
+    wallpaper: Wallpaper,
+    ground: Ground,
+    accent: Color,
+    hour: Int,
+    modifier: Modifier = Modifier,
+) {
     Canvas(modifier) {
         drawRect(ground.color)
         val w = size.width
         val h = size.height
         val m = size.maxDimension
         when (wallpaper) {
-            Wallpaper.GLUT -> {
-                glow(Color(0xFFD65D0E), 0.30f, Offset(w * 0.88f, h * 0.08f), m * 0.55f)
-                glow(Color(0xFF689D6A), 0.24f, Offset(w * 0.05f, h * 0.95f), m * 0.45f)
-                glow(Color(0xFFB16286), 0.14f, Offset(w * 0.60f, h * 0.60f), m * 0.35f)
-                drawRect(
-                    Brush.verticalGradient(
-                        0.55f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.35f),
-                    ),
-                )
+            Wallpaper.GLUT -> evening()
+            Wallpaper.TIME -> when (hour) {
+                in 6..10 -> morning()
+                in 11..16 -> day()
+                in 17..21 -> evening()
+                else -> night()
             }
             Wallpaper.CONTOURS -> {
                 glow(accent, 0.14f, Offset(w * 0.80f, h * 0.20f), m * 0.50f)
@@ -38,6 +40,39 @@ fun WallpaperBackground(wallpaper: Wallpaper, ground: Ground, accent: Color, mod
         }
     }
 }
+
+
+/** Morgens kühl: Aqua und Blau. */
+private fun DrawScope.morning() {
+    glow(Theme.aqua, 0.22f, Offset(size.width * 0.88f, size.height * 0.08f), size.maxDimension * 0.55f)
+    glow(Theme.blue, 0.20f, Offset(size.width * 0.05f, size.height * 0.95f), size.maxDimension * 0.45f)
+    glow(Theme.yellow, 0.07f, Offset(size.width * 0.60f, size.height * 0.55f), size.maxDimension * 0.35f)
+    drawRect(shade())
+}
+
+/** Tagsüber hell und ruhig: Gelb und Aqua. */
+private fun DrawScope.day() {
+    glow(Theme.yellow, 0.16f, Offset(size.width * 0.88f, size.height * 0.08f), size.maxDimension * 0.55f)
+    glow(Theme.aqua, 0.15f, Offset(size.width * 0.05f, size.height * 0.95f), size.maxDimension * 0.45f)
+    drawRect(shade())
+}
+
+/** Abends warm: die „Glut“. */
+private fun DrawScope.evening() {
+    glow(Theme.orange, 0.24f, Offset(size.width * 0.88f, size.height * 0.08f), size.maxDimension * 0.55f)
+    glow(Theme.aqua, 0.20f, Offset(size.width * 0.05f, size.height * 0.95f), size.maxDimension * 0.45f)
+    glow(Theme.purple, 0.12f, Offset(size.width * 0.60f, size.height * 0.60f), size.maxDimension * 0.35f)
+    drawRect(shade())
+}
+
+/** Nachts fast dunkel, damit der Fernseher nicht blendet. */
+private fun DrawScope.night() {
+    glow(Theme.purple, 0.08f, Offset(size.width * 0.88f, size.height * 0.08f), size.maxDimension * 0.50f)
+    drawRect(Theme.bg0h.copy(alpha = 0.45f))
+}
+
+/** Unten etwas dunkler (bzw. bei hellen Schemata heller), damit Text gut lesbar bleibt. */
+private fun shade() = Brush.verticalGradient(0.55f to Color.Transparent, 1f to Theme.bg0h.copy(alpha = 0.6f))
 
 private fun DrawScope.glow(color: Color, alpha: Float, center: Offset, radius: Float) {
     drawRect(Brush.radialGradient(listOf(color.copy(alpha = alpha), Color.Transparent), center, radius))
@@ -54,5 +89,5 @@ private fun DrawScope.contours() {
         path.cubicTo(380f * sx, (y - 110f) * sy, 760f * sx, (y + 130f) * sy, 1160f * sx, y * sy)
         path.cubicTo(1560f * sx, (y - 130f) * sy, 1680f * sx, (y - 90f) * sy, 1960f * sx, (y + 30f) * sy)
     }
-    drawPath(path, Gruv.fg1.copy(alpha = 0.06f), style = Stroke(width = 1.5f * sx))
+    drawPath(path, Theme.fg1.copy(alpha = 0.06f), style = Stroke(width = 1.5f * sx))
 }

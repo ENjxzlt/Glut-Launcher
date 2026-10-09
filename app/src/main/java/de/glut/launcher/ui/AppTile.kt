@@ -18,8 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
@@ -31,22 +33,28 @@ import de.glut.launcher.data.AppArt
 import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
 
-/** Entsättigt und wärmt Banner an, damit sie zu Gruvbox passen. */
-private val gruvTint: ColorFilter = ColorFilter.colorMatrix(
-    ColorMatrix().apply {
-        setToSaturation(0.45f)
-        timesAssign(
-            ColorMatrix(
-                floatArrayOf(
-                    1.00f, 0f, 0f, 0f, 6f,
-                    0f, 0.93f, 0f, 0f, 2f,
-                    0f, 0f, 0.78f, 0f, 0f,
-                    0f, 0f, 0f, 1f, 0f,
+/**
+ * Entsättigt Banner und tönt sie in Richtung der Textfarbe des Farbschemas
+ * (bei Gruvbox warm, bei Nord kühl), damit sie zum Schema passen.
+ */
+private fun themeTint(tone: Color): ColorFilter {
+    val max = maxOf(tone.red, tone.green, tone.blue, 0.01f)
+    return ColorFilter.colorMatrix(
+        ColorMatrix().apply {
+            setToSaturation(0.45f)
+            timesAssign(
+                ColorMatrix(
+                    floatArrayOf(
+                        tone.red / max, 0f, 0f, 0f, 0f,
+                        0f, tone.green / max, 0f, 0f, 0f,
+                        0f, 0f, tone.blue / max, 0f, 0f,
+                        0f, 0f, 0f, 1f, 0f,
+                    ),
                 ),
-            ),
-        )
-    },
-)
+            )
+        },
+    )
+}
 
 /**
  * Eine App-Kachel im Format 16:9. Bei [TileStyle.PLAIN] stehen Name und
@@ -68,6 +76,8 @@ fun AppTile(
     val art by produceState<AppArt?>(null, app.packageName) { value = repository.loadArt(app) }
     val shape = RoundedCornerShape(if (large) 10.dp else 8.dp)
     val showBanner = style != TileStyle.PLAIN && art?.banner != null
+    val tone = Theme.fg1
+    val tint = remember(tone) { themeTint(tone) }
 
     Column(modifier.size(width = width, height = width * 9 / 16 + if (showBanner) 22.dp else 0.dp)) {
         Focusable(
@@ -82,11 +92,11 @@ fun AppTile(
                     bitmap = banner,
                     contentDescription = app.label,
                     contentScale = ContentScale.Crop,
-                    colorFilter = if (style == TileStyle.TINTED) gruvTint else null,
+                    colorFilter = if (style == TileStyle.TINTED) tint else null,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                PlainTileContent(app, art, style, focused, meta, large)
+                PlainTileContent(app, art, style, focused, meta, large, tint)
             }
         }
         if (showBanner) {
@@ -94,7 +104,7 @@ fun AppTile(
             Txt(
                 text = if (meta != null) "${app.label} · $meta" else app.label,
                 size = if (large) 9.sp else 8.5.sp,
-                color = Gruv.fg4,
+                color = Theme.fg4,
             )
         }
     }
@@ -108,6 +118,7 @@ private fun PlainTileContent(
     focused: Boolean,
     meta: String?,
     large: Boolean,
+    tint: ColorFilter,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = if (large) 14.dp else 10.dp, vertical = if (large) 12.dp else 9.dp),
@@ -117,9 +128,9 @@ private fun PlainTileContent(
             Box(
                 Modifier
                     .size(if (large) 7.dp else 6.dp)
-                    .background(Gruv.swatchFor(app.packageName), RoundedCornerShape(2.dp)),
+                    .background(Theme.swatchFor(app.packageName), RoundedCornerShape(2.dp)),
             )
-            if (meta != null) Txt(meta, size = 10.sp, color = if (focused) Gruv.fg2 else Gruv.fg3)
+            if (meta != null) Txt(meta, size = 10.sp, color = if (focused) Theme.fg2 else Theme.fg3)
         }
         // Ohne Banner (z. B. Handy-Apps) zeigen wir im Banner-Stil das Symbol.
         val icon = art?.icon
@@ -127,7 +138,7 @@ private fun PlainTileContent(
             Image(
                 bitmap = icon,
                 contentDescription = null,
-                colorFilter = if (style == TileStyle.TINTED) gruvTint else null,
+                colorFilter = if (style == TileStyle.TINTED) tint else null,
                 modifier = Modifier.weight(1f).fillMaxHeight().align(Alignment.CenterHorizontally).padding(vertical = 2.dp),
             )
         }
@@ -135,7 +146,7 @@ private fun PlainTileContent(
             text = app.label,
             size = if (large) 20.sp else 11.5.sp,
             weight = FontWeight.SemiBold,
-            color = if (focused) Gruv.fg0 else Gruv.fg1,
+            color = if (focused) Theme.fg0 else Theme.fg1,
         )
     }
 }

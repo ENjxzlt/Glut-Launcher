@@ -23,18 +23,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
+import de.glut.launcher.data.Folder
 import de.glut.launcher.data.Prefs
 
 enum class SortMode(val label: String) {
     ALPHA("A–Z"),
     RECENT("Zuletzt genutzt"),
     FREQUENT("Am häufigsten"),
+    SYSTEM("System"),
     HIDDEN("Ausgeblendete"),
 }
+
+/** Apps, die in „Alle Apps“ und auf der Startseite erscheinen. */
+fun visibleApps(apps: List<AppEntry>, prefs: Prefs): List<AppEntry> =
+    apps.filter { it.packageName !in prefs.hidden && !(prefs.hideSystemApps && it.isSystem) }
 
 @Composable
 fun AppsScreen(
@@ -44,18 +51,28 @@ fun AppsScreen(
     focusKey: Int,
     onLaunch: (AppEntry) -> Unit,
     onOptions: (AppEntry) -> Unit,
+    onOpenFolder: (Folder) -> Unit,
+    onFolderMenu: (Folder) -> Unit,
 ) {
     var sort by rememberSaveable { mutableStateOf(SortMode.ALPHA) }
     val now = rememberNow()
+    val visible = visibleApps(apps, prefs)
     val hiddenCount = apps.count { it.packageName in prefs.hidden }
+    val installed = apps.map { it.packageName }.toSet()
+    val folders = if (prefs.foldersEnabled && sort == SortMode.ALPHA) {
+        prefs.folders.map { f -> f.copy(apps = f.apps.filter { it in installed }) }
+    } else {
+        emptyList()
+    }
+    val inFolders = folders.flatMap { it.apps }.toSet()
     val shown = when (sort) {
-        SortMode.ALPHA -> apps.filter { it.packageName !in prefs.hidden }
-        SortMode.RECENT -> apps.filter { it.packageName !in prefs.hidden }
-            .sortedByDescending { prefs.usage[it.packageName]?.lastUsed ?: 0L }
-        SortMode.FREQUENT -> apps.filter { it.packageName !in prefs.hidden }
-            .sortedByDescending { prefs.usage[it.packageName]?.count ?: 0 }
+        SortMode.ALPHA -> visible.filter { it.packageName !in inFolders }
+        SortMode.RECENT -> visible.sortedByDescending { prefs.usage[it.packageName]?.lastUsed ?: 0L }
+        SortMode.FREQUENT -> visible.sortedByDescending { prefs.usage[it.packageName]?.count ?: 0 }
+        SortMode.SYSTEM -> apps.filter { it.isSystem && it.packageName !in prefs.hidden }
         SortMode.HIDDEN -> apps.filter { it.packageName in prefs.hidden }
     }
+    val modes = SortMode.entries.filter { it != SortMode.SYSTEM || prefs.hideSystemApps }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(focusKey) {
         withFrameNanos { }
@@ -68,25 +85,30 @@ fun AppsScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Txt("Alle Apps", size = 28.sp, color = Gruv.fg0, weight = FontWeight.SemiBold)
+                Txt("Alle Apps", size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
                 Txt(
-                    "${apps.size - hiddenCount} installiert · $hiddenCount ausgeblendet",
+                    "${visible.size} Apps · $hiddenCount ausgeblendet" +
+                        if (prefs.hideSystemApps) " · ${apps.count { it.isSystem }} System" else "",
                     size = 11.sp,
-                    color = Gruv.fg4,
+                    color = Theme.fg4,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SortMode.entries.forEach { mode ->
+                modes.forEach { mode ->
                     Pill(mode.label, onClick = { sort = mode }, selected = mode == sort)
                 }
             }
         }
 
-        if (shown.isEmpty()) {
+        if (shown.isEmpty() && folders.isEmpty()) {
             Txt(
-                if (sort == SortMode.HIDDEN) "Keine ausgeblendeten Apps." else "Keine Apps gefunden.",
+                when (sort) {
+                    SortMode.HIDDEN -> "Keine ausgeblendeten Apps."
+                    SortMode.SYSTEM -> "Keine Systemapps gefunden."
+                    else -> "Keine Apps gefunden."
+                },
                 size = 12.sp,
-                color = Gruv.fg4,
+                color = Theme.fg4,
             )
         }
 
@@ -97,6 +119,9 @@ fun AppsScreen(
             onLaunch = onLaunch,
             onOptions = onOptions,
             firstFocus = firstFocus,
+            folders = folders,
+            onOpenFolder = onOpenFolder,
+            onFolderMenu = onFolderMenu,
             meta = { app ->
                 val usage = prefs.usage[app.packageName]
                 when (sort) {
@@ -110,7 +135,7 @@ fun AppsScreen(
     }
 }
 
-/** Raster mit sechs App-Kacheln pro Zeile, für „Alle Apps“ und die Suche. */
+/** Raster aus Ordnern (zuerst) und App-Kacheln, für „Alle Apps“, Suche und Ordner. */
 @Composable
 fun AppGrid(
     apps: List<AppEntry>,
@@ -120,25 +145,44 @@ fun AppGrid(
     onOptions: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
     firstFocus: FocusRequester? = null,
+    folders: List<Folder> = emptyList(),
+    onOpenFolder: (Folder) -> Unit = {},
+    onFolderMenu: (Folder) -> Unit = {},
+    columns: Int = 6,
+    tileWidth: Dp = 124.dp,
     meta: (AppEntry) -> String? = { null },
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(6),
+        columns = GridCells.Fixed(columns),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 40.dp),
         modifier = modifier,
     ) {
+        itemsIndexed(folders, key = { _, f -> "folder:" + f.id }) { index, folder ->
+            FolderTile(
+                folder = folder,
+                style = prefs.tileStyle,
+                width = tileWidth,
+                onClick = { onOpenFolder(folder) },
+                onMenu = { onFolderMenu(folder) },
+                modifier = if (index == 0 && firstFocus != null) Modifier.focusRequester(firstFocus) else Modifier,
+            )
+        }
         itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
             AppTile(
                 app = app,
                 repository = repository,
                 style = prefs.tileStyle,
-                width = 124.dp,
+                width = tileWidth,
                 meta = meta(app),
                 onClick = { onLaunch(app) },
                 onMenu = { onOptions(app) },
-                modifier = if (index == 0 && firstFocus != null) Modifier.focusRequester(firstFocus) else Modifier,
+                modifier = if (index == 0 && folders.isEmpty() && firstFocus != null) {
+                    Modifier.focusRequester(firstFocus)
+                } else {
+                    Modifier
+                },
             )
         }
     }

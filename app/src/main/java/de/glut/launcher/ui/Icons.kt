@@ -51,10 +51,18 @@ object Icons {
     val grid = lineIcon("M4 4h6v6h-6z M14 4h6v6h-6z M4 14h6v6h-6z M14 14h6v6h-6z")
     val bluetooth = lineIcon("M7 7l10 10l-5 5V2l5 5L7 17")
     val home = lineIcon("M3 11l9-7l9 7 M5 10v10h14V10")
+    val play = lineIcon("M7 5l12 7l-12 7z")
+    val pause = lineIcon("M8 5v14 M16 5v14")
+    val previous = lineIcon("M18 6l-8 6l8 6z M6 6v12")
+    val next = lineIcon("M6 6l8 6l-8 6z M18 6v12")
+    val music = lineIcon("M9 18V5l11-2v13 M9 18a3 3 0 1 1-6 0a3 3 0 1 1 6 0z M20 16a3 3 0 1 1-6 0a3 3 0 1 1 6 0z")
+    val check = lineIcon("M5 12l5 5l9-10")
+    val folder = lineIcon("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z")
+    val bulb = lineIcon("M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z")
 }
 
 @Composable
-fun Icon(vector: ImageVector, size: Dp = 16.dp, tint: Color = Gruv.fg1) {
+fun Icon(vector: ImageVector, size: Dp = 16.dp, tint: Color = Theme.fg1) {
     Image(
         painter = rememberVectorPainter(vector),
         contentDescription = null,
@@ -73,7 +81,7 @@ fun IconButton(vector: ImageVector, description: String, onClick: () -> Unit, mo
         modifier = modifier.size(36.dp).semantics { contentDescription = description },
     ) { focused ->
         Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-            Icon(vector, size = 17.dp, tint = if (focused) Gruv.fg0 else Gruv.fg1)
+            Icon(vector, size = 17.dp, tint = if (focused) Theme.fg0 else Theme.fg1)
         }
     }
 }

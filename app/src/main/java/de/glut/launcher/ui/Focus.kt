@@ -35,8 +35,8 @@ fun Focusable(
     shape: Shape,
     modifier: Modifier = Modifier,
     onMenu: (() -> Unit)? = null,
-    color: Color = Gruv.bg1,
-    focusedColor: Color = Gruv.bg2,
+    color: Color = Theme.bg1,
+    focusedColor: Color = Theme.bg2,
     focusedScale: Float = 1.06f,
     content: @Composable BoxScope.(focused: Boolean) -> Unit,
 ) {

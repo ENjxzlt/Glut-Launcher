@@ -3,6 +3,7 @@ package de.glut.launcher.data
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import androidx.compose.ui.graphics.ImageBitmap
@@ -16,6 +17,8 @@ data class AppEntry(
     val packageName: String,
     val activityName: String,
     val label: String,
+    /** Vorinstalliert und nie aktualisiert, z. B. Amazon-Dienste. */
+    val isSystem: Boolean = false,
 )
 
 /** Banner (16:9, typisch für TV-Apps) und Symbol als Ersatz. */
@@ -39,10 +42,22 @@ class AppRepository(private val context: Context) {
                     packageName = activity.packageName,
                     activityName = activity.name,
                     label = info.loadLabel(pm).toString(),
+                    isSystem = isSystemApp(activity.applicationInfo),
                 )
             }
         }
         return result.values.sortedBy { it.label.lowercase() }
+    }
+
+    /**
+     * Vorinstallierte Apps, die nie über den Store aktualisiert wurden. Streaming-Apps
+     * wie Prime Video sind zwar vorinstalliert, werden aber aktualisiert und bleiben sichtbar.
+     */
+    private fun isSystemApp(info: ApplicationInfo?): Boolean {
+        if (info == null || info.packageName in ALWAYS_USER) return false
+        val system = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+        val updated = (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        return system && !updated
     }
 
     fun launchIntent(app: AppEntry): Intent =
@@ -72,5 +87,13 @@ class AppRepository(private val context: Context) {
 
     companion object {
         const val AMAZON_LAUNCHER = "com.amazon.tv.launcher"
+
+        /** Vorinstallierte Streaming-Apps, die nie als System-App gelten sollen. */
+        private val ALWAYS_USER = setOf(
+            "com.amazon.avod",
+            "com.amazon.firetv.youtube",
+            "com.netflix.ninja",
+            "com.amazon.music.tv",
+        )
     }
 }

@@ -1,6 +1,10 @@
 package de.glut.launcher.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +33,15 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
+import de.glut.launcher.data.Folder
+import de.glut.launcher.data.HaEntity
+import de.glut.launcher.data.NowPlaying
 import de.glut.launcher.data.Prefs
 
 @Composable
@@ -42,8 +50,17 @@ fun HomeScreen(
     prefs: Prefs,
     repository: AppRepository,
     focusKey: Int,
+    smartHome: List<HaEntity>,
+    nowPlaying: NowPlaying?,
+    onMediaOpen: () -> Unit,
+    onMediaPlayPause: () -> Unit,
+    onMediaNext: () -> Unit,
+    onMediaPrevious: () -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onOptions: (AppEntry) -> Unit,
+    onOpenFolder: (Folder) -> Unit,
+    onFolderMenu: (Folder) -> Unit,
+    onSmartHome: (HaEntity) -> Unit,
     onOpenApps: () -> Unit,
     onOpenMenu: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -54,13 +71,23 @@ fun HomeScreen(
     onOpenAmazonHome: () -> Unit,
 ) {
     val now = rememberNow()
-    val visible = apps.filter { it.packageName !in prefs.hidden }
-    val byPackage = visible.associateBy { it.packageName }
+    val visible = visibleApps(apps, prefs)
+    val byPackage = apps.filter { it.packageName !in prefs.hidden }.associateBy { it.packageName }
     val recents = visible
         .filter { (prefs.usage[it.packageName]?.lastUsed ?: 0L) > 0L }
         .sortedByDescending { prefs.usage[it.packageName]?.lastUsed ?: 0L }
         .take(4)
-    val favorites = prefs.favorites.mapNotNull { byPackage[it] }
+    val folderById = if (prefs.foldersEnabled) prefs.folders.associateBy { it.id } else emptyMap()
+    val installed = apps.map { it.packageName }.toSet()
+    // Favoriten: Apps oder Ordner, in gespeicherter Reihenfolge
+    val favorites: List<Any> = prefs.favorites.mapNotNull { key ->
+        if (key.startsWith(Folder.FAVORITE_PREFIX)) {
+            folderById[key.removePrefix(Folder.FAVORITE_PREFIX)]?.let { f -> f.copy(apps = f.apps.filter { it in installed }) }
+        } else {
+            byPackage[key]
+        }
+    }
+    val showSmartHome = prefs.haEnabled && prefs.haTilesEnabled && smartHome.isNotEmpty()
     val firstFocus = remember { FocusRequester() }
 
     LaunchedEffect(apps.isNotEmpty(), focusKey) {
@@ -69,14 +96,14 @@ fun HomeScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, top = 28.dp, bottom = 22.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, top = 28.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Kopfzeile: Uhr, Suchleiste, Symbole
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Txt(formatClock(now), size = 36.sp, color = Gruv.fg0, family = GeistMono, weight = FontWeight.Medium)
-                Txt(formatDate(now), size = 12.sp, color = Gruv.fg4)
+                Txt(formatClock(now), size = 36.sp, color = Theme.fg0, family = Theme.clockFont, weight = FontWeight.Medium)
+                Txt(formatDate(now), size = 12.sp, color = Theme.fg4)
             }
             Spacer(Modifier.width(32.dp))
             SearchBar(onClick = onOpenSearch, modifier = Modifier.weight(1f))
@@ -85,7 +112,7 @@ fun HomeScreen(
                 IconButton(Icons.wifi, "WLAN", onOpenWifi)
                 IconButton(Icons.profile, "Profil", onOpenProfile)
                 IconButton(Icons.settings, "Fire-TV-Einstellungen", onOpenSettings)
-                IconButton(Icons.sliders, "Launcher-Menü", onOpenMenu)
+                IconButton(Icons.sliders, "Launcher-Einstellungen", onOpenMenu)
             }
         }
 
@@ -95,62 +122,175 @@ fun HomeScreen(
         val focusAllApps = !focusRecent && !focusFavorite
         val firstFocusModifier = Modifier.focusRequester(firstFocus)
 
-        if (recents.isNotEmpty()) {
-            Section("Zuletzt genutzt") {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                ) {
-                    itemsIndexed(recents, key = { _, app -> app.packageName }) { index, app ->
-                        AppTile(
-                            app = app,
-                            repository = repository,
-                            style = prefs.tileStyle,
-                            width = 200.dp,
-                            large = true,
-                            meta = formatRelative(prefs.usage[app.packageName]?.lastUsed ?: now, now),
-                            onClick = { onLaunch(app) },
-                            onMenu = { onOptions(app) },
-                            modifier = if (index == 0 && focusRecent) firstFocusModifier else Modifier,
-                        )
+        // Der Inhalt scrollt, wenn Smart Home & Co. nicht mehr auf den Bildschirm passen.
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (nowPlaying != null && prefs.musicWidget) {
+                NowPlayingCard(nowPlaying, onMediaOpen, onMediaPlayPause, onMediaNext, onMediaPrevious)
+            }
+
+            if (recents.isNotEmpty()) {
+                Section("Zuletzt genutzt") {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    ) {
+                        itemsIndexed(recents, key = { _, app -> app.packageName }) { index, app ->
+                            AppTile(
+                                app = app,
+                                repository = repository,
+                                style = prefs.tileStyle,
+                                width = 200.dp,
+                                large = true,
+                                meta = formatRelative(prefs.usage[app.packageName]?.lastUsed ?: now, now),
+                                onClick = { onLaunch(app) },
+                                onMenu = { onOptions(app) },
+                                modifier = if (index == 0 && focusRecent) firstFocusModifier else Modifier,
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Section("Favoriten") {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-            ) {
-                itemsIndexed(favorites, key = { _, app -> app.packageName }) { index, app ->
-                    AppTile(
-                        app = app,
-                        repository = repository,
-                        style = prefs.tileStyle,
-                        width = 108.dp,
-                        onClick = { onLaunch(app) },
-                        onMenu = { onOptions(app) },
-                        modifier = if (index == 0 && focusFavorite) firstFocusModifier else Modifier,
-                    )
+            Section("Favoriten") {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                ) {
+                    itemsIndexed(favorites, key = { _, item -> if (item is Folder) item.favoriteKey else (item as AppEntry).packageName }) { index, item ->
+                        val focus = if (index == 0 && focusFavorite) firstFocusModifier else Modifier
+                        when (item) {
+                            is Folder -> FolderTile(
+                                folder = item,
+                                style = prefs.tileStyle,
+                                width = 108.dp,
+                                onClick = { onOpenFolder(item) },
+                                onMenu = { onFolderMenu(item) },
+                                modifier = focus,
+                            )
+                            is AppEntry -> AppTile(
+                                app = item,
+                                repository = repository,
+                                style = prefs.tileStyle,
+                                width = 108.dp,
+                                onClick = { onLaunch(item) },
+                                onMenu = { onOptions(item) },
+                                modifier = focus,
+                            )
+                        }
+                    }
+                    item(key = "add") { AddTile(onClick = onOpenApps) }
                 }
-                item(key = "add") { AddTile(onClick = onOpenApps) }
+            }
+
+            if (showSmartHome) {
+                Section("Smart Home") {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        itemsIndexed(smartHome, key = { _, e -> e.id }) { _, entity ->
+                            SmartHomeTile(entity, onClick = { onSmartHome(entity) })
+                        }
+                    }
+                }
+            }
+
+            Section("Geräte & System") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) {
+                    Pill("Alle Apps (${visible.size})", onOpenApps, if (focusAllApps) firstFocusModifier else Modifier, icon = Icons.grid)
+                    Pill("Bluetooth", onOpenBluetooth, icon = Icons.bluetooth)
+                    Pill("Amazon-Startseite", onOpenAmazonHome, icon = Icons.home)
+                }
             }
         }
 
-        Section("Geräte & System") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill("Alle Apps (${visible.size})", onOpenApps, if (focusAllApps) firstFocusModifier else Modifier, icon = Icons.grid)
-                Pill("Bluetooth", onOpenBluetooth, icon = Icons.bluetooth)
-                Pill("Amazon-Startseite", onOpenAmazonHome, icon = Icons.home)
-            }
-        }
-
-        Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             KeyHint("OK", "Öffnen")
-            KeyHint("MENÜ", "Favorit, Reihenfolge, Ausblenden")
+            KeyHint("MENÜ", "Favorit, Ordner, Ausblenden")
             KeyHint("ZURÜCK", "Startseite")
+        }
+    }
+}
+
+/** Musik-Widget: zeigt, was im Hintergrund läuft, mit Tasten für Pause und Titelwechsel. */
+@Composable
+private fun NowPlayingCard(
+    media: NowPlaying,
+    onOpen: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .background(Theme.bg1.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Focusable(
+            onClick = onOpen,
+            shape = RoundedCornerShape(8.dp),
+            color = Theme.bg2,
+            focusedScale = 1.05f,
+            modifier = Modifier.size(56.dp),
+        ) { _ ->
+            val art = media.art
+            if (art != null) {
+                Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.music, size = 22.dp, tint = Theme.fg3) }
+            }
+        }
+        Column(Modifier.width(300.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Txt(if (media.isPlaying) "Läuft gerade" else "Pausiert", size = 9.sp, color = LocalAccent.current)
+            Txt(media.title, size = 13.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
+            if (media.artist.isNotBlank()) Txt(media.artist, size = 10.5.sp, color = Theme.fg3)
+        }
+        IconButton(Icons.previous, "Vorheriger Titel", onPrevious)
+        IconButton(if (media.isPlaying) Icons.pause else Icons.play, if (media.isPlaying) "Pause" else "Abspielen", onPlayPause)
+        IconButton(Icons.next, "Nächster Titel", onNext)
+    }
+}
+
+/** Kachel für Licht, Schalter, Szene oder Skript aus Home Assistant. */
+@Composable
+private fun SmartHomeTile(entity: HaEntity, onClick: () -> Unit) {
+    val accent = LocalAccent.current
+    Focusable(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = if (entity.isOn) Theme.bg2 else Theme.bg1,
+        focusedScale = 1.05f,
+        modifier = Modifier.size(width = 150.dp, height = 50.dp),
+    ) { focused ->
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Icon(
+                if (entity.isAction) Icons.sliders else Icons.bulb,
+                size = 17.dp,
+                tint = if (entity.isOn) accent else if (focused) Theme.fg1 else Theme.fg4,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Txt(entity.name, size = 10.5.sp, weight = FontWeight.SemiBold, color = if (focused) Theme.fg0 else Theme.fg1)
+                Txt(
+                    when {
+                        entity.isAction -> "Ausführen"
+                        entity.isOn -> "An"
+                        entity.state == "off" -> "Aus"
+                        else -> entity.state
+                    },
+                    size = 9.sp,
+                    color = Theme.fg4,
+                )
+            }
         }
     }
 }
@@ -174,8 +314,8 @@ fun Pill(
     Focusable(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = if (selected) Gruv.fg1 else Gruv.bg1,
-        focusedColor = if (selected) Gruv.fg0 else Gruv.bg2,
+        color = if (selected) Theme.fg1 else Theme.bg1,
+        focusedColor = if (selected) Theme.fg0 else Theme.bg2,
         focusedScale = 1.04f,
         modifier = modifier.height(32.dp),
     ) { _ ->
@@ -185,7 +325,7 @@ fun Pill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            val color = if (selected) Gruv.bg0 else Gruv.fg1
+            val color = if (selected) Theme.bg0 else Theme.fg1
             if (icon != null) Icon(icon, size = 14.dp, tint = color)
             Txt(text, size = 11.sp, color = color, weight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
         }
@@ -206,8 +346,8 @@ fun SearchBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(Icons.search, size = 15.dp, tint = if (focused) Gruv.fg1 else Gruv.fg4)
-            Txt("Apps durchsuchen", size = 11.5.sp, color = if (focused) Gruv.fg2 else Gruv.fg4)
+            Icon(Icons.search, size = 15.dp, tint = if (focused) Theme.fg1 else Theme.fg4)
+            Txt("Apps durchsuchen", size = 11.5.sp, color = if (focused) Theme.fg2 else Theme.fg4)
         }
     }
 }
@@ -222,14 +362,14 @@ private fun AddTile(onClick: () -> Unit) {
             .size(width = 108.dp, height = 61.dp)
             .drawBehind {
                 drawRoundRect(
-                    color = Gruv.bg3,
+                    color = Theme.bg3,
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()),
                     style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f))),
                 )
             },
     ) { _ ->
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Txt("+ Hinzufügen", size = 11.sp, color = Gruv.fg3)
+            Txt("+ Hinzufügen", size = 11.sp, color = Theme.fg3)
         }
     }
 }

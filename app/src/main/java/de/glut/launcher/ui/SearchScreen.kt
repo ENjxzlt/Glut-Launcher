@@ -82,18 +82,18 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp)
-                .background(if (fieldFocused) Gruv.bg2 else Gruv.bg1, RoundedCornerShape(22.dp))
+                .background(if (fieldFocused) Theme.bg2 else Theme.bg1, RoundedCornerShape(22.dp))
                 .then(if (fieldFocused) Modifier.border(2.dp, accent, RoundedCornerShape(22.dp)) else Modifier)
                 .padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.search, size = 18.dp, tint = Gruv.fg2)
+            Icon(Icons.search, size = 18.dp, tint = Theme.fg2)
             BasicTextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
-                textStyle = TextStyle(color = Gruv.fg0, fontSize = 15.sp, fontFamily = Geist),
+                textStyle = TextStyle(color = Theme.fg0, fontSize = 15.sp, fontFamily = Theme.font),
                 cursorBrush = SolidColor(accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
@@ -106,7 +106,7 @@ fun SearchScreen(
                     .onFocusChanged { fieldFocused = it.isFocused },
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Txt("App-Name eingeben …", size = 15.sp, color = Gruv.fg4)
+                        if (query.isEmpty()) Txt("App-Name eingeben …", size = 15.sp, color = Theme.fg4)
                         inner()
                     }
                 },
@@ -120,7 +120,7 @@ fun SearchScreen(
                 else -> "${results.size} Treffer für „$term“"
             },
             size = 11.sp,
-            color = Gruv.fg4,
+            color = Theme.fg4,
         )
 
         AppGrid(

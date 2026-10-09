@@ -3,6 +3,10 @@ name: APK bauen
 on:
   push:
   workflow_dispatch:
+  # Hält den zwischengespeicherten Signaturschlüssel am Leben
+  # (GitHub löscht Caches, die 7 Tage nicht benutzt wurden).
+  schedule:
+    - cron: "17 4 * * 1,4"
 
 permissions:
   contents: write
@@ -13,25 +17,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Gleicher Schlüssel für jeden Build, sonst lässt sich ein Update nicht
+      # über die installierte Version installieren. Gradle legt den Debug-Schlüssel
+      # beim ersten Build an; danach kommt er aus dem Cache.
+      - name: Signaturschlüssel aus dem Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: glut-debug-keystore-v1
+
+      - name: Nur Cache auffrischen (geplanter Lauf)
+        if: github.event_name == 'schedule'
+        run: |
+          test -f ~/.android/debug.keystore && echo "Schlüssel vorhanden." || echo "::warning::Schlüssel fehlt im Cache."
+
       - uses: actions/setup-java@v4
+        if: github.event_name != 'schedule'
         with:
           distribution: temurin
           java-version: "17"
 
       - uses: gradle/actions/setup-gradle@v4
+        if: github.event_name != 'schedule'
 
-      - name: Signaturschlüssel aus Secret holen (optional)
+      - name: Signaturschlüssel aus Secret holen (optional, hat Vorrang)
+        if: github.event_name != 'schedule'
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
             echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sideload.jks"
             echo "SIGNING_STORE_FILE=$RUNNER_TEMP/sideload.jks" >> "$GITHUB_ENV"
-          else
-            echo "Kein Secret gesetzt – APK wird mit zufälligem Debug-Schlüssel signiert."
           fi
 
       - name: APK bauen
+        if: github.event_name != 'schedule'
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
@@ -41,14 +61,16 @@ jobs:
           ./gradlew --no-daemon assembleDebug
 
       - uses: actions/upload-artifact@v4
+        if: github.event_name != 'schedule'
         with:
           name: glut-launcher-apk
           path: app/build/outputs/apk/debug/*.apk
 
       # Feste Download-Adresse für die Downloader-App auf dem Fire TV:
       # https://github.com/ENjxzlt/Sanity/releases/latest/download/glut-launcher.apk
+      # Die Zeilen versionCode=/versionName= liest die Update-Funktion im Launcher.
       - name: Release aktualisieren
-        if: github.ref == 'refs/heads/ccr-579bb9e7-stpfdp'
+        if: github.event_name != 'schedule' && github.ref == 'refs/heads/ccr-579bb9e7-stpfdp'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -57,5 +79,8 @@ jobs:
           gh release create neuester-build glut-launcher.apk \
             --target "$GITHUB_SHA" \
             --latest \
-            --title "Glut Launcher – neuester Build" \
-            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Installation: siehe README."
+            --title "Glut Launcher 0.2.$GITHUB_RUN_NUMBER" \
+            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Installation: siehe README.
+
+          versionCode=$GITHUB_RUN_NUMBER
+          versionName=0.2.$GITHUB_RUN_NUMBER"

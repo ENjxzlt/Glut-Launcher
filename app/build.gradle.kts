@@ -18,8 +18,10 @@ android {
         // Fire OS 7 = Android 9 (API 28), Fire OS 8 = Android 11 (API 30)
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // Auf GitHub zählt jeder Build hoch; daran erkennt der Launcher Updates.
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "0.2.$build"
     }
 
     signingConfigs {
@@ -50,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
