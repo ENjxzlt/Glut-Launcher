@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
     private var overlay by mutableStateOf<Overlay?>(null)
     private var serviceEnabled by mutableStateOf(false)
+    private var keyFilterSupported by mutableStateOf(false)
     private var focusKey by mutableIntStateOf(0)
     private val smartHome = mutableStateListOf<HaEntity>()
     private var haEntities by mutableStateOf<List<HaEntity>>(emptyList())
@@ -207,6 +208,7 @@ class MainActivity : ComponentActivity() {
                 prefs = prefs,
                 focusKey = focusKey,
                 serviceEnabled = serviceEnabled,
+                keyFilterSupported = keyFilterSupported,
                 mediaAccess = media.hasAccess,
                 haStatus = haStatus,
                 updater = updater,
@@ -338,6 +340,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         prefs.clearAmazonHomeBypass()
         serviceEnabled = HomeRedirectService.isEnabled(this)
+        keyFilterSupported = HomeRedirectService.canFilterKeys()
         if (appsDirty) refreshApps()
         media.start()
         endKinoMode()

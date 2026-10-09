@@ -41,6 +41,7 @@ fun SettingsScreen(
     prefs: Prefs,
     focusKey: Int,
     serviceEnabled: Boolean,
+    keyFilterSupported: Boolean,
     mediaAccess: Boolean,
     haStatus: String?,
     updater: Updater,
@@ -144,12 +145,21 @@ fun SettingsScreen(
                 value = onOff(prefs.redirectHome),
                 subtitle = if (serviceEnabled) "Dienst aktiv" else "Dienst nicht aktiviert – siehe Anleitung (ADB)",
             )
-            MenuRow(
-                "Schnelle Home-Taste",
-                { prefs.fastHome = !prefs.fastHome },
-                value = onOff(prefs.fastHome),
-                subtitle = "Öffnet Glut sofort, ohne Amazon-Startseite. Lang drücken: Glut-Schnellmenü statt Amazons Menü",
-            )
+            if (keyFilterSupported) {
+                MenuRow(
+                    "Schnelle Home-Taste",
+                    { prefs.fastHome = !prefs.fastHome },
+                    value = onOff(prefs.fastHome),
+                    subtitle = "Öffnet Glut sofort, ohne Amazon-Startseite. Lang drücken: Glut-Schnellmenü statt Amazons Menü",
+                )
+            } else if (serviceEnabled) {
+                MenuRow(
+                    "Schnelle Home-Taste",
+                    {},
+                    value = "Nicht verfügbar",
+                    subtitle = "Fire OS gibt die Home-Taste auf diesem Gerät nicht an Apps weiter",
+                )
+            }
             MenuRow(
                 "Nach Updates suchen",
                 { onAction(SettingsAction.UPDATE_CHECK) },

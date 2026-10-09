@@ -1,6 +1,7 @@
 package de.glut.launcher.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -112,6 +113,15 @@ class HomeRedirectService : AccessibilityService() {
         @Volatile
         var instance: HomeRedirectService? = null
             private set
+
+        /**
+         * Darf der Dienst Tasten abfangen? Fire OS streicht diese Berechtigung auf
+         * manchen Geräten (dumpsys zeigt dann capabilities=0).
+         */
+        fun canFilterKeys(): Boolean {
+            val info = instance?.serviceInfo ?: return false
+            return (info.capabilities and AccessibilityServiceInfo.CAPABILITY_CAN_REQUEST_FILTER_KEY_EVENTS) != 0
+        }
 
         fun isEnabled(context: Context): Boolean {
             val enabled = Settings.Secure.getString(

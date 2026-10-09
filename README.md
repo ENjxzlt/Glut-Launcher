@@ -108,9 +108,10 @@ Ob der Dienst läuft, zeigt *Einstellungen → System → Home-Taste umleiten*.
 **Schnelle Home-Taste** (Standard: an): Der Dienst fängt die Home-Taste ab,
 bevor Fire OS die Amazon-Startseite lädt – das ist deutlich schneller. Langes
 Drücken öffnet dann das Glut-Schnellmenü (Schlafen, Einstellungen,
-Amazon-Startseite) statt Amazons eigenem Menü. Nach dem Update auf diese Version
-ggf. die beiden `settings put`-Befehle erneut ausführen, damit Fire OS dem
-Dienst das Abfangen von Tasten erlaubt.
+Amazon-Startseite) statt Amazons eigenem Menü. Funktioniert nur, wenn Fire OS dem
+Dienst das Abfangen von Tasten erlaubt. Auf dem Fire TV Stick Lite (Fire OS 7)
+wird diese Berechtigung gestrichen (`dumpsys accessibility` zeigt
+`capabilities=0`); dann blendet der Launcher die Option aus.
 
 Für das **Musik-Widget** braucht der Launcher Zugriff auf die Mediensitzungen
 anderer Apps. Android gibt den nur an zugelassene Benachrichtigungs-Dienste:
