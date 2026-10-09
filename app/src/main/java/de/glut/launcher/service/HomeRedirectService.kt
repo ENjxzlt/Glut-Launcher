@@ -9,7 +9,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
@@ -85,6 +87,8 @@ class HomeRedirectService : AccessibilityService() {
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         if (event.packageName?.toString() != AppRepository.AMAZON_LAUNCHER) return
         if (!Prefs.shouldRedirect(this)) return
+        // Zeitmessung: eventTime ist der Zeitpunkt des Ereignisses, uptime der Empfang.
+        Log.i(TAG, "Amazon-Startseite gemeldet: event=${event.eventTime} empfangen=${SystemClock.uptimeMillis()} class=${event.className}")
 
         // Kommt die Amazon-Startseite kurz nach dem Einschalten, darf die Einschalt-App starten.
         val justWoke = wokeAt > 0 && System.currentTimeMillis() - wokeAt < WAKE_WINDOW_MS
@@ -108,6 +112,7 @@ class HomeRedirectService : AccessibilityService() {
     companion object {
         private const val WAKE_WINDOW_MS = 60_000L
         private const val LONG_PRESS_MS = 650L
+        const val TAG = "Glut"
 
         /** Laufender Dienst, z. B. für „Schlafen“ aus dem Schnellmenü. */
         @Volatile

@@ -6,7 +6,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
+import android.view.Choreographer
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -107,6 +110,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        log("onCreate")
         prefs = Prefs(this)
         Theme.prefs = prefs
         repository = AppRepository(this)
@@ -321,6 +325,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        log("onNewIntent")
         // Home gedrückt, während der Launcher schon offen ist: zurück zur Startseite.
         if (intent.hasCategory(Intent.CATEGORY_HOME)) {
             overlay = null
@@ -339,6 +344,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        log("onResume")
+        Choreographer.getInstance().postFrameCallback { log("erstes Bild") }
         prefs.clearAmazonHomeBypass()
         serviceEnabled = HomeRedirectService.isEnabled(this)
         keyFilterSupported = HomeRedirectService.canFilterKeys()
@@ -441,6 +448,8 @@ class MainActivity : ComponentActivity() {
             if (!quiet) toast("Lässt sich auf diesem Gerät nicht öffnen.")
             false
         }
+
+    private fun log(step: String) = Log.i(HomeRedirectService.TAG, "$step uptime=${SystemClock.uptimeMillis()}")
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
