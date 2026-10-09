@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +46,9 @@ fun HomeScreen(
     onOptions: (AppEntry) -> Unit,
     onOpenApps: () -> Unit,
     onOpenMenu: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenWifi: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenBluetooth: () -> Unit,
     onOpenAmazonHome: () -> Unit,
@@ -66,15 +72,20 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, top = 28.dp, bottom = 22.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        // Kopfzeile: Uhr links, Menü rechts
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        // Kopfzeile: Uhr, Suchleiste, Symbole
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Txt(formatClock(now), size = 36.sp, color = Gruv.fg0, family = GeistMono, weight = FontWeight.Medium)
                 Txt(formatDate(now), size = 12.sp, color = Gruv.fg4)
             }
+            Spacer(Modifier.width(32.dp))
+            SearchBar(onClick = onOpenSearch, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill("Einstellungen", onOpenSettings)
-                Pill("Menü", onOpenMenu)
+                IconButton(Icons.wifi, "WLAN", onOpenWifi)
+                IconButton(Icons.profile, "Profil", onOpenProfile)
+                IconButton(Icons.settings, "Fire-TV-Einstellungen", onOpenSettings)
+                IconButton(Icons.sliders, "Launcher-Menü", onOpenMenu)
             }
         }
 
@@ -129,9 +140,9 @@ fun HomeScreen(
 
         Section("Geräte & System") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill("Alle Apps (${visible.size})", onOpenApps, if (focusAllApps) firstFocusModifier else Modifier)
-                Pill("Bluetooth", onOpenBluetooth)
-                Pill("Amazon-Startseite", onOpenAmazonHome)
+                Pill("Alle Apps (${visible.size})", onOpenApps, if (focusAllApps) firstFocusModifier else Modifier, icon = Icons.grid)
+                Pill("Bluetooth", onOpenBluetooth, icon = Icons.bluetooth)
+                Pill("Amazon-Startseite", onOpenAmazonHome, icon = Icons.home)
             }
         }
 
@@ -153,7 +164,13 @@ fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun Pill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false) {
+fun Pill(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    icon: ImageVector? = null,
+) {
     Focusable(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
@@ -162,13 +179,35 @@ fun Pill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, selec
         focusedScale = 1.04f,
         modifier = modifier.height(32.dp),
     ) { _ ->
-        Box(Modifier.fillMaxSize().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
-            Txt(
-                text,
-                size = 11.sp,
-                color = if (selected) Gruv.bg0 else Gruv.fg1,
-                weight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            )
+        // Nur so breit wie der Inhalt – nicht fillMaxSize, sonst nimmt die Pille die ganze Zeile.
+        Row(
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            val color = if (selected) Gruv.bg0 else Gruv.fg1
+            if (icon != null) Icon(icon, size = 14.dp, tint = color)
+            Txt(text, size = 11.sp, color = color, weight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        }
+    }
+}
+
+/** Sieht aus wie ein Eingabefeld, öffnet aber die Such-Ansicht (dort tippt man). */
+@Composable
+fun SearchBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Focusable(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        focusedScale = 1.02f,
+        modifier = modifier.height(36.dp),
+    ) { focused ->
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(Icons.search, size = 15.dp, tint = if (focused) Gruv.fg1 else Gruv.fg4)
+            Txt("Apps durchsuchen", size = 11.5.sp, color = if (focused) Gruv.fg2 else Gruv.fg4)
         }
     }
 }

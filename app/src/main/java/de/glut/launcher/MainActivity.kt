@@ -26,12 +26,13 @@ import de.glut.launcher.ui.AppsScreen
 import de.glut.launcher.ui.HomeScreen
 import de.glut.launcher.ui.LocalAccent
 import de.glut.launcher.ui.QuickMenu
+import de.glut.launcher.ui.SearchScreen
 import de.glut.launcher.ui.WallpaperBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Screen { HOME, APPS }
+private enum class Screen { HOME, APPS, SEARCH }
 
 class MainActivity : ComponentActivity() {
     private lateinit var prefs: Prefs
@@ -64,11 +65,22 @@ class MainActivity : ComponentActivity() {
                             onOptions = { optionsFor = it },
                             onOpenApps = { screen = Screen.APPS },
                             onOpenMenu = { menuOpen = true },
+                            onOpenSearch = { screen = Screen.SEARCH },
+                            onOpenWifi = { startSafely(Intent(Settings.ACTION_WIFI_SETTINGS)) },
+                            onOpenProfile = ::openProfiles,
                             onOpenSettings = { startSafely(Intent(Settings.ACTION_SETTINGS)) },
                             onOpenBluetooth = { startSafely(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
                             onOpenAmazonHome = ::openAmazonHome,
                         )
                         Screen.APPS -> AppsScreen(
+                            apps = apps,
+                            prefs = prefs,
+                            repository = repository,
+                            focusKey = focusKey,
+                            onLaunch = ::launchApp,
+                            onOptions = { optionsFor = it },
+                        )
+                        Screen.SEARCH -> SearchScreen(
                             apps = apps,
                             prefs = prefs,
                             repository = repository,
@@ -164,6 +176,16 @@ class MainActivity : ComponentActivity() {
             if (fallback == null || !startSafely(fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) {
                 prefs.clearAmazonHomeBypass()
             }
+        }
+    }
+
+    /**
+     * Amazon bietet für den Profilwechsel keine öffentliche Schnittstelle.
+     * Wir versuchen die Konto-Einstellungen und fallen auf die Fire-TV-Einstellungen zurück.
+     */
+    private fun openProfiles() {
+        if (!startSafely(Intent(Settings.ACTION_SYNC_SETTINGS), quiet = true)) {
+            startSafely(Intent(Settings.ACTION_SETTINGS))
         }
     }
 

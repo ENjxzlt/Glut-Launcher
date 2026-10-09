@@ -90,30 +90,56 @@ fun AppsScreen(
             )
         }
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(6),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 40.dp),
-            modifier = Modifier.weight(1f),
-        ) {
-            itemsIndexed(shown, key = { _, app -> app.packageName }) { index, app ->
+        AppGrid(
+            apps = shown,
+            prefs = prefs,
+            repository = repository,
+            onLaunch = onLaunch,
+            onOptions = onOptions,
+            firstFocus = firstFocus,
+            meta = { app ->
                 val usage = prefs.usage[app.packageName]
-                AppTile(
-                    app = app,
-                    repository = repository,
-                    style = prefs.tileStyle,
-                    width = 124.dp,
-                    meta = when (sort) {
-                        SortMode.RECENT -> usage?.let { formatRelative(it.lastUsed, now) }
-                        SortMode.FREQUENT -> usage?.let { "${it.count}× geöffnet" }
-                        else -> null
-                    },
-                    onClick = { onLaunch(app) },
-                    onMenu = { onOptions(app) },
-                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
-                )
-            }
+                when (sort) {
+                    SortMode.RECENT -> usage?.let { formatRelative(it.lastUsed, now) }
+                    SortMode.FREQUENT -> usage?.let { "${it.count}× geöffnet" }
+                    else -> null
+                }
+            },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** Raster mit sechs App-Kacheln pro Zeile, für „Alle Apps“ und die Suche. */
+@Composable
+fun AppGrid(
+    apps: List<AppEntry>,
+    prefs: Prefs,
+    repository: AppRepository,
+    onLaunch: (AppEntry) -> Unit,
+    onOptions: (AppEntry) -> Unit,
+    modifier: Modifier = Modifier,
+    firstFocus: FocusRequester? = null,
+    meta: (AppEntry) -> String? = { null },
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(6),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 40.dp),
+        modifier = modifier,
+    ) {
+        itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
+            AppTile(
+                app = app,
+                repository = repository,
+                style = prefs.tileStyle,
+                width = 124.dp,
+                meta = meta(app),
+                onClick = { onLaunch(app) },
+                onMenu = { onOptions(app) },
+                modifier = if (index == 0 && firstFocus != null) Modifier.focusRequester(firstFocus) else Modifier,
+            )
         }
     }
 }
