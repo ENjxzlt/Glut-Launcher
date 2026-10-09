@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
@@ -21,8 +23,16 @@ data class AppEntry(
     val isSystem: Boolean = false,
 )
 
-/** Banner (16:9, typisch für TV-Apps) und Symbol als Ersatz. */
-data class AppArt(val banner: ImageBitmap?, val icon: ImageBitmap?)
+/**
+ * Banner (16:9, typisch für TV-Apps). Fehlt es, nutzt die Kachel ein breites Logo
+ * oder das Symbol auf einer Fläche in [iconColor], der Hauptfarbe des Symbols.
+ */
+data class AppArt(
+    val banner: ImageBitmap?,
+    val icon: ImageBitmap?,
+    val logo: ImageBitmap? = null,
+    val iconColor: Color? = null,
+)
 
 class AppRepository(private val context: Context) {
     private val pm: PackageManager = context.packageManager
@@ -72,9 +82,16 @@ class AppRepository(private val context: Context) {
                 pm.getActivityBanner(component) ?: pm.getApplicationBanner(app.packageName)
             }.getOrNull()
             val icon = runCatching { pm.getActivityIcon(component) }.getOrNull()
+            // Manche Apps (z. B. von Amazon) haben kein Banner, aber ein breites Logo.
+            val logo = if (banner != null) null else runCatching {
+                pm.getActivityLogo(component) ?: pm.getApplicationLogo(app.packageName)
+            }.getOrNull()?.takeIf { it.intrinsicWidth > it.intrinsicHeight * 1.3f }
+            val iconBitmap = icon?.let { runCatching { it.toBitmap(144, 144) }.getOrNull() }
             AppArt(
                 banner = banner?.render(320, 180),
-                icon = icon?.render(144, 144),
+                icon = iconBitmap?.asImageBitmap(),
+                logo = logo?.renderKeepingAspect(maxWidth = 320, maxHeight = 120),
+                iconColor = iconBitmap?.let { dominantColor(it) },
             ).also { artCache[app.packageName] = it }
         }
     }
@@ -83,6 +100,35 @@ class AppRepository(private val context: Context) {
 
     private fun Drawable.render(width: Int, height: Int): ImageBitmap? =
         runCatching { toBitmap(width, height).asImageBitmap() }.getOrNull()
+
+    private fun Drawable.renderKeepingAspect(maxWidth: Int, maxHeight: Int): ImageBitmap? {
+        val w = intrinsicWidth.takeIf { it > 0 } ?: return null
+        val h = intrinsicHeight.takeIf { it > 0 } ?: return null
+        val scale = minOf(maxWidth / w.toFloat(), maxHeight / h.toFloat())
+        return render((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
+    }
+
+    /** Kräftigste Farbe des Symbols: Durchschnitt der Pixel, gewichtet nach Sättigung. */
+    private fun dominantColor(bitmap: Bitmap): Color? {
+        val small = runCatching { Bitmap.createScaledBitmap(bitmap, 24, 24, true) }.getOrNull() ?: return null
+        var r = 0f
+        var g = 0f
+        var b = 0f
+        var total = 0f
+        val hsv = FloatArray(3)
+        for (y in 0 until small.height) for (x in 0 until small.width) {
+            val p = small.getPixel(x, y)
+            if (android.graphics.Color.alpha(p) < 128) continue
+            android.graphics.Color.colorToHSV(p, hsv)
+            val weight = 0.05f + hsv[1] * hsv[2]
+            r += android.graphics.Color.red(p) * weight
+            g += android.graphics.Color.green(p) * weight
+            b += android.graphics.Color.blue(p) * weight
+            total += weight
+        }
+        if (total == 0f) return null
+        return Color(r / total / 255f, g / total / 255f, b / total / 255f)
+    }
 
     companion object {
         const val AMAZON_LAUNCHER = "com.amazon.tv.launcher"
