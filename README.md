@@ -134,7 +134,7 @@ as a normal app, but the Home button keeps going to Amazon.
    My Fire TV → About* and click the device name seven times.
 2. Install **Downloader** from the Amazon Appstore and open this URL:
    ```
-   github.com/ENjxzlt/Sanity/releases/latest/download/glut-launcher.apk
+   github.com/ENjxzlt/Glut-Launcher/releases/latest/download/glut-launcher.apk
    ```
 3. Install the APK. Glut now shows up under *Apps*.
 

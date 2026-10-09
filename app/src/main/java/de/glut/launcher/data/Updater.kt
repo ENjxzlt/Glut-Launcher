@@ -133,6 +133,6 @@ class Updater(private val context: Context) {
     }
 
     companion object {
-        private const val RELEASE_API = "https://api.github.com/repos/ENjxzlt/Sanity/releases/tags/neuester-build"
+        private const val RELEASE_API = "https://api.github.com/repos/ENjxzlt/Glut-Launcher/releases/tags/neuester-build"
     }
 }

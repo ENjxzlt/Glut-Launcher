@@ -77,7 +77,7 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
 
       # Feste Download-Adresse für die Downloader-App auf dem Fire TV:
-      # https://github.com/ENjxzlt/Sanity/releases/latest/download/glut-launcher.apk
+      # https://github.com/ENjxzlt/Glut-Launcher/releases/latest/download/glut-launcher.apk
       # Die Zeilen versionCode=/versionName= liest die Update-Funktion im Launcher.
       - name: Release aktualisieren
         if: github.event_name != 'schedule' && github.ref == 'refs/heads/ccr-579bb9e7-stpfdp'
