@@ -48,7 +48,26 @@ Dann im Repo unter *Settings → Secrets and variables → Actions* anlegen:
 `SIGNING_KEY_ALIAS` (`sideload`), `SIGNING_KEY_PASSWORD`. Die `.jks`-Datei
 nicht ins Repo legen.
 
-## Installieren
+## Installieren nur mit Fire TV und Handy
+
+1. Am Stick: *Einstellungen → Mein Fire TV → Entwickleroptionen*:
+   *ADB-Debugging* an, *Apps unbekannter Herkunft* an (bzw. für Downloader
+   erlauben). Fehlen die Entwickleroptionen: *Mein Fire TV → Info*, dort
+   siebenmal auf den Gerätenamen klicken.
+2. Im Amazon Appstore die App **Downloader** installieren und darin diese
+   Adresse eingeben:
+   `github.com/ENjxzlt/Sanity/releases/latest/download/glut-launcher.apk`
+3. Installieren. Glut Launcher steht jetzt unter *Apps* und läuft schon,
+   nur die Home-Taste führt noch zu Amazon.
+4. Für die Home-Taste braucht es einmal ADB:
+   - **Android-Handy:** z. B. Termux (`pkg install android-tools`) oder eine
+     ADB-App aus dem Play Store. Handy und Stick im selben WLAN,
+     `adb connect <IP-des-Sticks>`, am Fernseher „Zulassen“ bestätigen, dann
+     die zwei `settings put`-Befehle unten.
+   - **iPhone:** kein brauchbares ADB. Dann bleibt der Launcher eine normale
+     App ohne Home-Umleitung, oder du leihst dir kurz einen Rechner.
+
+## Installieren mit Rechner
 
 1. Am Stick: *Einstellungen → Mein Fire TV → Entwickleroptionen →
    ADB-Debugging* einschalten. Die IP steht unter *Mein Fire TV → Info →

@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -41,3 +44,18 @@ jobs:
         with:
           name: glut-launcher-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      # Feste Download-Adresse für die Downloader-App auf dem Fire TV:
+      # https://github.com/ENjxzlt/Sanity/releases/latest/download/glut-launcher.apk
+      - name: Release aktualisieren
+        if: github.ref == 'refs/heads/ccr-579bb9e7-stpfdp'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk glut-launcher.apk
+          gh release delete neuester-build --yes --cleanup-tag || true
+          gh release create neuester-build glut-launcher.apk \
+            --target "$GITHUB_SHA" \
+            --latest \
+            --title "Glut Launcher – neuester Build" \
+            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Installation: siehe README."
