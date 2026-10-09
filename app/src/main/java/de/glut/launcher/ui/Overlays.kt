@@ -328,3 +328,22 @@ fun TextInputDialog(
         MenuRow("Abbrechen", { keyboard?.hide(); onCancel() })
     }
 }
+
+/** Schnellmenü bei langem Druck auf die Home-Taste. */
+@Composable
+fun QuickActionsDialog(
+    onSleep: () -> Unit,
+    onSettings: () -> Unit,
+    onFireSettings: () -> Unit,
+    onAmazonHome: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val first = rememberInitialFocus()
+    DialogPanel("Schnellmenü") {
+        MenuRow("Schlafen", onSleep, Modifier.focusRequester(first))
+        MenuRow("Launcher-Einstellungen", onSettings)
+        MenuRow("Fire-TV-Einstellungen", onFireSettings)
+        MenuRow("Amazon-Startseite öffnen", onAmazonHome, subtitle = "10 Minuten ohne Umleitung")
+        MenuRow("Abbrechen", onClose)
+    }
+}

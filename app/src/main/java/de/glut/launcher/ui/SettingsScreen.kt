@@ -145,6 +145,12 @@ fun SettingsScreen(
                 subtitle = if (serviceEnabled) "Dienst aktiv" else "Dienst nicht aktiviert – siehe Anleitung (ADB)",
             )
             MenuRow(
+                "Schnelle Home-Taste",
+                { prefs.fastHome = !prefs.fastHome },
+                value = onOff(prefs.fastHome),
+                subtitle = "Öffnet Glut sofort, ohne Amazon-Startseite. Lang drücken: Glut-Schnellmenü statt Amazons Menü",
+            )
+            MenuRow(
                 "Nach Updates suchen",
                 { onAction(SettingsAction.UPDATE_CHECK) },
                 subtitle = updater.status ?: "Installiert: ${updater.currentVersion}",

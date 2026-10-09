@@ -1,6 +1,9 @@
 package de.glut.launcher
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -19,6 +22,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
@@ -40,6 +44,7 @@ import de.glut.launcher.ui.HomeScreen
 import de.glut.launcher.ui.ListPicker
 import de.glut.launcher.ui.LocalAccent
 import de.glut.launcher.ui.PickItem
+import de.glut.launcher.ui.QuickActionsDialog
 import de.glut.launcher.ui.SearchScreen
 import de.glut.launcher.ui.SettingsAction
 import de.glut.launcher.ui.SettingsScreen
@@ -59,6 +64,7 @@ private sealed interface Overlay {
     val back: Overlay? get() = null
 
     data class AppMenu(val app: AppEntry, override val back: Overlay? = null) : Overlay
+    data object QuickActions : Overlay
     data class FolderOpen(val folderId: String) : Overlay
     data class FolderMenu(val folderId: String, override val back: Overlay? = null) : Overlay
     data class MoveToFolder(val app: AppEntry, override val back: Overlay? = null) : Overlay
@@ -129,6 +135,26 @@ class MainActivity : ComponentActivity() {
             }
         }
         handleWake(intent)
+        handleQuickActions(intent)
+
+        // App-Liste nur neu laden, wenn sich installierte Apps ändern – nicht bei jedem Home-Druck.
+        val packages = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(this, packageReceiver, packages, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    private var appsDirty = true
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            appsDirty = true
+            repository.clearArtCache()
+            refreshApps()
+        }
     }
 
     @androidx.compose.runtime.Composable
@@ -259,6 +285,16 @@ class MainActivity : ComponentActivity() {
                     onDone = { if (overlay === current) closeOverlay() },
                 )
             }
+            Overlay.QuickActions -> QuickActionsDialog(
+                onSleep = {
+                    closeOverlay()
+                    if (HomeRedirectService.instance?.sleep() != true) toast("Schlafen wird auf diesem Gerät nicht unterstützt.")
+                },
+                onSettings = { overlay = null; screen = Screen.SETTINGS; focusKey++ },
+                onFireSettings = { closeOverlay(); startSafely(Intent(Settings.ACTION_SETTINGS)) },
+                onAmazonHome = { closeOverlay(); openAmazonHome() },
+                onClose = ::closeOverlay,
+            )
             is Overlay.Input -> TextInputDialog(
                 title = current.title,
                 initial = current.initial,
@@ -288,13 +324,21 @@ class MainActivity : ComponentActivity() {
             goHome()
         }
         handleWake(intent)
+        handleQuickActions(intent)
+    }
+
+    /** Langes Drücken der Home-Taste (schnelle Home-Taste). */
+    private fun handleQuickActions(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_QUICK_ACTIONS, false) != true) return
+        intent.removeExtra(EXTRA_QUICK_ACTIONS)
+        overlay = Overlay.QuickActions
     }
 
     override fun onResume() {
         super.onResume()
         prefs.clearAmazonHomeBypass()
         serviceEnabled = HomeRedirectService.isEnabled(this)
-        refreshApps()
+        if (appsDirty) refreshApps()
         media.start()
         endKinoMode()
         refreshSmartHome()
@@ -302,6 +346,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(packageReceiver) }
         media.stop()
         super.onDestroy()
     }
@@ -328,9 +373,10 @@ class MainActivity : ComponentActivity() {
     // --- Apps starten ---
 
     private fun refreshApps() {
+        appsDirty = false
         lifecycleScope.launch {
-            repository.clearArtCache()
-            apps = withContext(Dispatchers.IO) { repository.loadApps() }
+            val loaded = withContext(Dispatchers.IO) { repository.loadApps() }
+            if (loaded != apps) apps = loaded
         }
     }
 
@@ -591,6 +637,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_WOKE = "de.glut.launcher.WOKE"
+        const val EXTRA_QUICK_ACTIONS = "de.glut.launcher.QUICK_ACTIONS"
         private const val NEW_FOLDER = "\u0000new"
     }
 }

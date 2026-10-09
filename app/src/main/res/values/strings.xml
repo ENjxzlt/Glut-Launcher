@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Glut Launcher</string>
     <string name="service_name">Glut Launcher – Home-Taste</string>
-    <string name="service_description">Öffnet Glut Launcher, sobald die Amazon-Startseite erscheint. Liest keine Bildschirminhalte.</string>
+    <string name="service_description">Öffnet Glut Launcher statt der Amazon-Startseite. Wertet nur die Home-Taste aus und liest keine Bildschirminhalte.</string>
     <string name="media_service_name">Glut Launcher – Musik-Widget</string>
 </resources>

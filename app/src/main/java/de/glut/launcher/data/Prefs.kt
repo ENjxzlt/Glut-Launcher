@@ -38,6 +38,7 @@ class Prefs(context: Context) {
 
     // Startseite
     var redirectHome by boolPref("redirectHome", true)
+    var fastHome by boolPref("fastHome", true)
     var favorites by listPref("favorites")
     var hidden by pref("hidden", emptySet<String>(), { s -> s.split('\n').filter { it.isNotBlank() }.toSet() }, { it.joinToString("\n") })
     var foldersEnabled by boolPref("foldersEnabled", true)
@@ -177,6 +178,9 @@ class Prefs(context: Context) {
 
         private fun prefs(context: Context): SharedPreferences =
             context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
+
+        /** Home-Taste direkt abfangen statt auf die Amazon-Startseite zu warten. */
+        fun fastHome(context: Context): Boolean = prefs(context).getString("fastHome", "true") != "false"
 
         /** Direkter Lesezugriff für den Dienst, ohne Compose-State. */
         fun shouldRedirect(context: Context): Boolean {
