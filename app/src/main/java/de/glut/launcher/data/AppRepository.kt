@@ -26,7 +26,6 @@ data class AppArt(val banner: ImageBitmap?, val icon: ImageBitmap?)
 
 class AppRepository(private val context: Context) {
     private val pm: PackageManager = context.packageManager
-    private val artCache = ConcurrentHashMap<String, AppArt>()
 
     fun loadApps(): List<AppEntry> {
         val result = LinkedHashMap<String, AppEntry>()
@@ -46,7 +45,7 @@ class AppRepository(private val context: Context) {
                 )
             }
         }
-        return result.values.sortedBy { it.label.lowercase() }
+        return result.values.sortedBy { it.label.lowercase() }.also { cachedApps = it }
     }
 
     /**
@@ -87,6 +86,14 @@ class AppRepository(private val context: Context) {
 
     companion object {
         const val AMAZON_LAUNCHER = "com.amazon.tv.launcher"
+
+        // Pro Prozess, nicht pro Activity: Verwirft Fire OS die Activity aus
+        // Speichermangel, sind App-Liste und Banner beim nächsten Home-Druck sofort da.
+        private val artCache = ConcurrentHashMap<String, AppArt>()
+
+        @Volatile
+        var cachedApps: List<AppEntry> = emptyList()
+            private set
 
         /** Vorinstallierte Streaming-Apps, die nie als System-App gelten sollen. */
         private val ALWAYS_USER = setOf(

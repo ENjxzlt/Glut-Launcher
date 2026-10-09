@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var media: MediaWatcher
     private lateinit var updater: Updater
 
-    private var apps by mutableStateOf<List<AppEntry>>(emptyList())
+    private var apps by mutableStateOf(AppRepository.cachedApps)
     private var screen by mutableStateOf(Screen.HOME)
     private var overlay by mutableStateOf<Overlay?>(null)
     private var serviceEnabled by mutableStateOf(false)
@@ -149,6 +149,7 @@ class MainActivity : ComponentActivity() {
         ContextCompat.registerReceiver(this, packageReceiver, packages, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
+    // Beim Start einmal im Hintergrund prüfen; bis dahin zeigt die Liste den Stand aus dem Speicher.
     private var appsDirty = true
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {

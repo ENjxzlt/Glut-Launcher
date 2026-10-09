@@ -39,6 +39,13 @@ android {
         debug {
             if (signingStore != null) signingConfig = signingConfigs.getByName("sideload")
         }
+        // Auf dem Fire TV Stick Lite ist der Debug-Build spürbar träge; ausgeliefert wird release.
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (signingStore != null) signingConfig = signingConfigs.getByName("sideload")
+        }
     }
 
     compileOptions {
@@ -48,6 +55,12 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    lint {
+        // Lint-Prüfungen im Release-Build würden an Play-Store-Vorgaben scheitern,
+        // die für Sideloading keine Rolle spielen.
+        checkReleaseBuilds = false
     }
 
     buildFeatures {
@@ -67,4 +80,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    // Installiert die mitgelieferten Startprofile von Compose → schnellerer Start
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 }
