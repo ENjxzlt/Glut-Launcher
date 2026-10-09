@@ -1,5 +1,7 @@
 package de.glut.launcher.ui
 
+import de.glut.launcher.t
+import de.glut.launcher.uiLocale
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -21,7 +23,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-private val german = Locale.GERMANY
 
 /** Aktuelle Zeit, aktualisiert zu jeder vollen Minute. */
 @Composable
@@ -36,23 +37,24 @@ fun rememberNow(): Long {
     return now
 }
 
-fun formatClock(time: Long): String = SimpleDateFormat("HH:mm", german).format(Date(time))
+fun formatClock(time: Long): String = SimpleDateFormat("HH:mm", uiLocale).format(Date(time))
 
-fun formatDate(time: Long): String = SimpleDateFormat("EEEE, d. MMMM", german).format(Date(time))
+fun formatDate(time: Long): String =
+    SimpleDateFormat(t("EEEE, d. MMMM", "EEEE, d MMMM"), uiLocale).format(Date(time))
 
-/** „vor 5 Min.“, „vor 2 Std.“, „gestern“, „Mittwoch“, „12. Sept.“ */
+/** „vor 5 Min.“ / "5 min ago", „gestern“ / "yesterday", Wochentag, Datum */
 fun formatRelative(time: Long, now: Long): String {
     val minutes = (now - time) / 60_000L
-    if (minutes < 1) return "gerade eben"
-    if (minutes < 60) return "vor $minutes Min."
+    if (minutes < 1) return t("gerade eben", "just now")
+    if (minutes < 60) return t("vor $minutes Min.", "$minutes min ago")
     val then = Calendar.getInstance().apply { timeInMillis = time }
     val today = Calendar.getInstance().apply { timeInMillis = now }
     val days = daysBetween(then, today)
     return when {
-        days == 0 -> "vor ${minutes / 60} Std."
-        days == 1 -> "gestern"
-        days < 7 -> SimpleDateFormat("EEEE", german).format(Date(time))
-        else -> SimpleDateFormat("d. MMM", german).format(Date(time))
+        days == 0 -> t("vor ${minutes / 60} Std.", "${minutes / 60} h ago")
+        days == 1 -> t("gestern", "yesterday")
+        days < 7 -> SimpleDateFormat("EEEE", uiLocale).format(Date(time))
+        else -> SimpleDateFormat(t("d. MMM", "d MMM"), uiLocale).format(Date(time))
     }
 }
 

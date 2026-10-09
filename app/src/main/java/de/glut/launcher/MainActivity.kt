@@ -220,8 +220,8 @@ class MainActivity : ComponentActivity() {
                 mediaAccess = media.hasAccess,
                 haStatus = haStatus,
                 updater = updater,
-                appLabel = { pkg -> if (pkg.isBlank()) "Startseite" else apps.firstOrNull { it.packageName == pkg }?.label ?: pkg },
-                entityLabel = { id -> if (id.isBlank()) "Nichts" else haEntities.firstOrNull { it.id == id }?.name ?: id },
+                appLabel = { pkg -> if (pkg.isBlank()) t("Startseite", "Home") else apps.firstOrNull { it.packageName == pkg }?.label ?: pkg },
+                entityLabel = { id -> if (id.isBlank()) t("Nichts", "Nothing") else haEntities.firstOrNull { it.id == id }?.name ?: id },
                 onAction = ::onSettingsAction,
             )
         }
@@ -278,14 +278,14 @@ class MainActivity : ComponentActivity() {
             is Overlay.MoveToFolder -> {
                 val currentFolder = prefs.folderOf(current.app.packageName)
                 val items = prefs.folders.map { PickItem(it.id, it.name, "${it.apps.size} Apps") } +
-                    PickItem(NEW_FOLDER, "Neuer Ordner …")
+                    PickItem(NEW_FOLDER, t("Neuer Ordner …", "New folder …"))
                 ListPicker(
-                    title = "„${current.app.label}“ verschieben",
+                    title = t("„${current.app.label}“ verschieben", "Move “${current.app.label}”"),
                     items = items,
                     isSelected = { it == currentFolder?.id },
                     onSelect = { key ->
                         if (key == NEW_FOLDER) {
-                            val folder = prefs.createFolder("Neuer Ordner", current.app.packageName)
+                            val folder = prefs.createFolder(t("Neuer Ordner", "New folder"), current.app.packageName)
                             overlay = renameFolder(folder, back = current.back)
                         } else {
                             prefs.moveToFolder(current.app.packageName, key)
@@ -298,7 +298,7 @@ class MainActivity : ComponentActivity() {
             Overlay.QuickActions -> QuickActionsDialog(
                 onSleep = {
                     closeOverlay()
-                    if (HomeRedirectService.instance?.sleep() != true) toast("Schlafen wird auf diesem Gerät nicht unterstützt.")
+                    if (HomeRedirectService.instance?.sleep() != true) toast(t("Schlafen wird auf diesem Gerät nicht unterstützt.", "Sleep is not supported on this device."))
                 },
                 onSettings = { overlay = null; screen = Screen.SETTINGS; focusKey++ },
                 onFireSettings = { closeOverlay(); startSafely(Intent(Settings.ACTION_SETTINGS)) },
@@ -349,7 +349,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         log("onResume")
         Choreographer.getInstance().postFrameCallback {
-            log("erstes Bild")
+            log("first frame")
             // Ein Bild später ist Glut sicher sichtbar: Sofortbild entfernen.
             window.decorView.post { HomeRedirectService.instance?.hideCover() }
         }
@@ -402,9 +402,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun renameFolder(folder: Folder, back: Overlay?) = Overlay.Input(
-        title = "Ordner benennen",
+        title = t("Ordner benennen", "Name folder"),
         initial = folder.name,
-        hint = "z. B. Streaming",
+        hint = t("z. B. Streaming", "e.g. Streaming"),
         back = back,
     ) { name -> if (name.isNotBlank()) prefs.renameFolder(folder.id, name) }
 
@@ -472,7 +472,7 @@ class MainActivity : ComponentActivity() {
             startActivity(intent)
             true
         } catch (e: Exception) {
-            if (!quiet) toast("Lässt sich auf diesem Gerät nicht öffnen.")
+            if (!quiet) toast(t("Lässt sich auf diesem Gerät nicht öffnen.", "Can't be opened on this device."))
             false
         }
 
@@ -485,37 +485,37 @@ class MainActivity : ComponentActivity() {
     private fun onSettingsAction(action: SettingsAction) {
         when (action) {
             SettingsAction.THEME -> overlay = Overlay.Picker(
-                title = "Farbschema",
+                title = t("Farbschema", "Colour theme"),
                 items = ColorTheme.entries.map { PickItem(it.name, it.label) },
                 isSelected = { it == prefs.colorTheme.name },
                 onSelect = { key -> prefs.colorTheme = ColorTheme.valueOf(key) },
             )
             SettingsAction.FONT -> overlay = Overlay.Picker(
-                title = "Schriftart",
+                title = t("Schriftart", "Font"),
                 items = FontChoice.entries.map { PickItem(it.name, it.label) },
                 isSelected = { it == prefs.font.name },
                 onSelect = { key -> prefs.font = FontChoice.valueOf(key) },
             )
-            SettingsAction.STARTUP_DAY -> overlay = appPicker("Tagsüber öffnen", allowNone = true, { prefs.startupDay }) { prefs.startupDay = it }
-            SettingsAction.STARTUP_EVENING -> overlay = appPicker("Abends öffnen", allowNone = true, { prefs.startupEvening }) { prefs.startupEvening = it }
+            SettingsAction.STARTUP_DAY -> overlay = appPicker(t("Tagsüber öffnen", "Open during the day"), allowNone = true, { prefs.startupDay }) { prefs.startupDay = it }
+            SettingsAction.STARTUP_EVENING -> overlay = appPicker(t("Abends öffnen", "Open in the evening"), allowNone = true, { prefs.startupEvening }) { prefs.startupEvening = it }
             SettingsAction.HA_URL -> overlay = Overlay.Input(
-                title = "Home-Assistant-Adresse",
+                title = t("Home-Assistant-Adresse", "Home Assistant address"),
                 initial = prefs.haUrl,
-                hint = "z. B. 192.168.1.20:8123 oder homeassistant.local",
+                hint = t("z. B. 192.168.1.20:8123 oder homeassistant.local", "e.g. 192.168.1.20:8123 or homeassistant.local"),
             ) { url -> if (url.isNotBlank()) prefs.haUrl = HomeAssistant.normalize(url) }
             SettingsAction.HA_LOGIN -> startHaLogin()
             SettingsAction.HA_TOKEN -> overlay = Overlay.Input(
-                title = "Langlebiges Token",
+                title = t("Langlebiges Token", "Long-lived token"),
                 initial = "",
-                hint = "Token einfügen",
+                hint = t("Token einfügen", "Paste token"),
                 password = true,
-                subtitle = "Mit der Fernbedienung mühsam – am einfachsten per ADB vom Handy: adb shell input text TOKEN",
+                subtitle = t("Mit der Fernbedienung mühsam – am einfachsten per ADB vom Handy: adb shell input text TOKEN", "Tedious with the remote – easiest via ADB from your phone: adb shell input text TOKEN"),
             ) { token ->
                 if (token.isNotBlank() && prefs.haUrl.isNotBlank()) {
-                    haStatus = "Prüfe Token …"
+                    haStatus = t("Prüfe Token …", "Checking token …")
                     lifecycleScope.launch {
-                        haStatus = runCatching { homeAssistant.useLongLivedToken(prefs.haUrl, token); "Verbunden." }
-                            .getOrElse { it.message ?: "Verbindung fehlgeschlagen." }
+                        haStatus = runCatching { homeAssistant.useLongLivedToken(prefs.haUrl, token); t("Verbunden.", "Connected.") }
+                            .getOrElse { it.message ?: t("Verbindung fehlgeschlagen.", "Connection failed.") }
                         refreshSmartHome()
                     }
                 }
@@ -523,11 +523,11 @@ class MainActivity : ComponentActivity() {
             SettingsAction.HA_LOGOUT -> {
                 prefs.haLogout()
                 smartHome.clear()
-                haStatus = "Abgemeldet."
+                haStatus = t("Abgemeldet.", "Signed out.")
             }
             SettingsAction.HA_TILES -> withEntities { entities ->
                 overlay = Overlay.Picker(
-                    title = "Geräte für die Startseite",
+                    title = t("Geräte für die Startseite", "Devices for the home screen"),
                     items = entities.map { PickItem(it.id, it.name, it.id) },
                     isSelected = { it in prefs.haTiles },
                     onSelect = { id -> prefs.haTiles = if (id in prefs.haTiles) prefs.haTiles - id else prefs.haTiles + id },
@@ -535,17 +535,17 @@ class MainActivity : ComponentActivity() {
                 )
             }
             SettingsAction.KINO_APPS -> overlay = Overlay.Picker(
-                title = "Apps für den Kino-Modus",
+                title = t("Apps für den Kino-Modus", "Apps for cinema mode"),
                 items = apps.map { PickItem(it.packageName, it.label) },
                 isSelected = { it in prefs.kinoApps },
                 onSelect = { pkg -> prefs.kinoApps = if (pkg in prefs.kinoApps) prefs.kinoApps - pkg else prefs.kinoApps + pkg },
                 multi = true,
             )
             SettingsAction.KINO_START -> withEntities { entities ->
-                overlay = entityPicker("Beim Start der App", entities, { prefs.kinoStart }) { prefs.kinoStart = it }
+                overlay = entityPicker(t("Beim Start der App", "When the app starts"), entities, { prefs.kinoStart }) { prefs.kinoStart = it }
             }
             SettingsAction.KINO_END -> withEntities { entities ->
-                overlay = entityPicker("Zurück auf der Startseite", entities, { prefs.kinoEnd }) { prefs.kinoEnd = it }
+                overlay = entityPicker(t("Zurück auf der Startseite", "Back on the home screen"), entities, { prefs.kinoEnd }) { prefs.kinoEnd = it }
             }
             SettingsAction.UPDATE_CHECK -> lifecycleScope.launch { updater.check() }
             SettingsAction.UPDATE_INSTALL -> updater.available?.let { info ->
@@ -560,7 +560,7 @@ class MainActivity : ComponentActivity() {
                     Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")),
                     quiet = true,
                 )
-                if (!ok) toast("Fire-TV-Einstellungen → Mein Fire TV → Entwickleroptionen → Apps unbekannter Herkunft → Glut Launcher erlauben.")
+                if (!ok) toast(t("Fire-TV-Einstellungen → Mein Fire TV → Entwickleroptionen → Apps unbekannter Herkunft → Glut Launcher erlauben.", "Fire TV settings → My Fire TV → Developer options → Apps from unknown sources → allow Glut Launcher."))
             }
             SettingsAction.FIRE_SETTINGS -> startSafely(Intent(Settings.ACTION_SETTINGS))
             SettingsAction.AMAZON_HOME -> openAmazonHome()
@@ -569,7 +569,7 @@ class MainActivity : ComponentActivity() {
 
     private fun appPicker(title: String, allowNone: Boolean, current: () -> String, set: (String) -> Unit) = Overlay.Picker(
         title = title,
-        items = (if (allowNone) listOf(PickItem("", "Startseite (keine App)")) else emptyList()) +
+        items = (if (allowNone) listOf(PickItem("", t("Startseite (keine App)", "Home screen (no app)"))) else emptyList()) +
             apps.map { PickItem(it.packageName, it.label) },
         isSelected = { it == current() },
         onSelect = set,
@@ -577,8 +577,8 @@ class MainActivity : ComponentActivity() {
 
     private fun entityPicker(title: String, entities: List<HaEntity>, current: () -> String, set: (String) -> Unit) = Overlay.Picker(
         title = title,
-        subtitle = "Szenen und Skripte aus Home Assistant",
-        items = listOf(PickItem("", "Nichts")) + entities.filter { it.isAction }.map { PickItem(it.id, it.name, it.id) },
+        subtitle = t("Szenen und Skripte aus Home Assistant", "Scenes and scripts from Home Assistant"),
+        items = listOf(PickItem("", t("Nichts", "Nothing"))) + entities.filter { it.isAction }.map { PickItem(it.id, it.name, it.id) },
         isSelected = { it == current() },
         onSelect = set,
     )
@@ -587,29 +587,29 @@ class MainActivity : ComponentActivity() {
 
     private fun startHaLogin() {
         if (prefs.haUrl.isBlank()) {
-            toast("Bitte zuerst die Server-Adresse eingeben.")
+            toast(t("Bitte zuerst die Server-Adresse eingeben.", "Please enter the server address first."))
             return
         }
-        overlay = Overlay.Input("Benutzername", "", "Home-Assistant-Benutzer") { user ->
-            overlay = Overlay.Input("Passwort", "", "Passwort", password = true) { password ->
-                haStatus = "Melde an …"
+        overlay = Overlay.Input(t("Benutzername", "Username"), "", t("Home-Assistant-Benutzer", "Home Assistant user")) { user ->
+            overlay = Overlay.Input(t("Passwort", "Password"), "", t("Passwort", "Password"), password = true) { password ->
+                haStatus = t("Melde an …", "Signing in …")
                 lifecycleScope.launch { handleLogin { homeAssistant.login(prefs.haUrl, user, password) } }
             }
         }
     }
 
     private suspend fun handleLogin(step: suspend () -> LoginStep) {
-        val result = runCatching { step() }.getOrElse { LoginStep.Failed(it.message ?: "Keine Verbindung.") }
+        val result = runCatching { step() }.getOrElse { LoginStep.Failed(it.message ?: t("Keine Verbindung.", "No connection.")) }
         when (result) {
             LoginStep.Done -> {
-                haStatus = "Verbunden."
+                haStatus = t("Verbunden.", "Connected.")
                 refreshSmartHome()
             }
             is LoginStep.Failed -> haStatus = result.message
             is LoginStep.NeedsCode -> overlay = Overlay.Input(
-                title = "Bestätigungscode",
+                title = t("Bestätigungscode", "Verification code"),
                 initial = "",
-                hint = "6-stelliger Code aus der Authenticator-App",
+                hint = t("6-stelliger Code aus der Authenticator-App", "6-digit code from your authenticator app"),
             ) { code ->
                 lifecycleScope.launch { handleLogin { homeAssistant.submitCode(prefs.haUrl, result.flowId, code) } }
             }
@@ -621,7 +621,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             runCatching { homeAssistant.states() }
                 .onSuccess { haEntities = it; then(it) }
-                .onFailure { toast(it.message ?: "Home Assistant nicht erreichbar.") }
+                .onFailure { toast(it.message ?: t("Home Assistant nicht erreichbar.", "Home Assistant not reachable.")) }
         }
     }
 
@@ -640,7 +640,7 @@ class MainActivity : ComponentActivity() {
     private fun activateEntity(entity: HaEntity) {
         lifecycleScope.launch {
             runCatching { homeAssistant.activate(entity.id) }
-                .onFailure { toast(it.message ?: "Home Assistant nicht erreichbar.") }
+                .onFailure { toast(it.message ?: t("Home Assistant nicht erreichbar.", "Home Assistant not reachable.")) }
             refreshSmartHome()
         }
     }
@@ -671,7 +671,7 @@ class MainActivity : ComponentActivity() {
         if (now - prefs.lastUpdateCheck < 6 * 60 * 60 * 1000L) return
         prefs.lastUpdateCheck = now
         lifecycleScope.launch {
-            updater.check()?.let { toast("Update auf Version ${it.versionName} verfügbar – Einstellungen → System.") }
+            updater.check()?.let { toast(t("Update auf Version ${it.versionName} verfügbar – Einstellungen → System.", "Update to version ${it.versionName} available – Settings → System.")) }
         }
     }
 

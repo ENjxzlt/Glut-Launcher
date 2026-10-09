@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.widget.Toast
+import de.glut.launcher.t
 
 /** Antwort des Paket-Installers nach einem Update. */
 class InstallResultReceiver : BroadcastReceiver() {
@@ -20,14 +21,17 @@ class InstallResultReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_SUCCESS -> Unit // Die App wird neu gestartet.
             PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> toast(
                 context,
-                "Update passt nicht zur installierten Version (anderer Signaturschlüssel). " +
-                    "Einmal deinstallieren und neu installieren.",
+                t(
+                    context,
+                    "Update passt nicht zur installierten Version (anderer Signaturschlüssel). Einmal deinstallieren und neu installieren.",
+                    "Update does not match the installed version (different signing key). Uninstall once and install again.",
+                ),
             )
-            PackageInstaller.STATUS_FAILURE_ABORTED -> toast(context, "Update abgebrochen.")
+            PackageInstaller.STATUS_FAILURE_ABORTED -> toast(context, t(context, "Update abgebrochen.", "Update cancelled."))
             else -> toast(
                 context,
-                "Update fehlgeschlagen: " +
-                    (intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "unbekannter Fehler"),
+                t(context, "Update fehlgeschlagen: ", "Update failed: ") +
+                    (intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: t(context, "unbekannter Fehler", "unknown error")),
             )
         }
     }

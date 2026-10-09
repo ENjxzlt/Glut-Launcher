@@ -1,5 +1,6 @@
 package de.glut.launcher.ui
 
+import de.glut.launcher.t
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,7 +65,7 @@ fun FolderTile(
         }
         if (withLabel) {
             Spacer(Modifier.height(5.dp))
-            Txt("Ordner · ${folder.apps.size} Apps", size = 8.5.sp, color = Theme.fg4)
+            Txt(t("Ordner · ${folder.apps.size} Apps", "Folder · ${folder.apps.size} apps"), size = 8.5.sp, color = Theme.fg4)
         }
     }
 }

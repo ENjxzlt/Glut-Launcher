@@ -1,5 +1,6 @@
 package de.glut.launcher.ui
 
+import de.glut.launcher.t
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -110,9 +111,9 @@ fun HomeScreen(
             Spacer(Modifier.width(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(Icons.wifi, "WLAN", onOpenWifi)
-                IconButton(Icons.profile, "Profil", onOpenProfile)
-                IconButton(Icons.settings, "Fire-TV-Einstellungen", onOpenSettings)
-                IconButton(Icons.sliders, "Launcher-Einstellungen", onOpenMenu)
+                IconButton(Icons.profile, t("Profil", "Profile"), onOpenProfile)
+                IconButton(Icons.settings, t("Fire-TV-Einstellungen", "Fire TV settings"), onOpenSettings)
+                IconButton(Icons.sliders, t("Launcher-Einstellungen", "Launcher settings"), onOpenMenu)
             }
         }
 
@@ -132,7 +133,7 @@ fun HomeScreen(
             }
 
             if (recents.isNotEmpty()) {
-                Section("Zuletzt genutzt") {
+                Section(t("Zuletzt genutzt", "Recently used")) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
@@ -154,7 +155,7 @@ fun HomeScreen(
                 }
             }
 
-            Section("Favoriten") {
+            Section(t("Favoriten", "Favourites")) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
@@ -198,19 +199,19 @@ fun HomeScreen(
                 }
             }
 
-            Section("Geräte & System") {
+            Section(t("Geräte & System", "Devices & system")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) {
-                    Pill("Alle Apps (${visible.size})", onOpenApps, if (focusAllApps) firstFocusModifier else Modifier, icon = Icons.grid)
+                    Pill(t("Alle Apps (${visible.size})", "All apps (${visible.size})"), onOpenApps, if (focusAllApps) firstFocusModifier else Modifier, icon = Icons.grid)
                     Pill("Bluetooth", onOpenBluetooth, icon = Icons.bluetooth)
-                    Pill("Amazon-Startseite", onOpenAmazonHome, icon = Icons.home)
+                    Pill(t("Amazon-Startseite", "Amazon home"), onOpenAmazonHome, icon = Icons.home)
                 }
             }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            KeyHint("OK", "Öffnen")
-            KeyHint("MENÜ", "Favorit, Ordner, Ausblenden")
-            KeyHint("ZURÜCK", "Startseite")
+            KeyHint("OK", t("Öffnen", "Open"))
+            KeyHint(t("MENÜ", "MENU"), t("Favorit, Ordner, Ausblenden", "Favourite, folder, hide"))
+            KeyHint(t("ZURÜCK", "BACK"), t("Startseite", "Home"))
         }
     }
 }
@@ -247,13 +248,13 @@ private fun NowPlayingCard(
             }
         }
         Column(Modifier.width(300.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Txt(if (media.isPlaying) "Läuft gerade" else "Pausiert", size = 9.sp, color = LocalAccent.current)
+            Txt(if (media.isPlaying) t("Läuft gerade", "Now playing") else t("Pausiert", "Paused"), size = 9.sp, color = LocalAccent.current)
             Txt(media.title, size = 13.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
             if (media.artist.isNotBlank()) Txt(media.artist, size = 10.5.sp, color = Theme.fg3)
         }
-        IconButton(Icons.previous, "Vorheriger Titel", onPrevious)
-        IconButton(if (media.isPlaying) Icons.pause else Icons.play, if (media.isPlaying) "Pause" else "Abspielen", onPlayPause)
-        IconButton(Icons.next, "Nächster Titel", onNext)
+        IconButton(Icons.previous, t("Vorheriger Titel", "Previous track"), onPrevious)
+        IconButton(if (media.isPlaying) Icons.pause else Icons.play, if (media.isPlaying) "Pause" else t("Abspielen", "Play"), onPlayPause)
+        IconButton(Icons.next, t("Nächster Titel", "Next track"), onNext)
     }
 }
 
@@ -282,9 +283,9 @@ private fun SmartHomeTile(entity: HaEntity, onClick: () -> Unit) {
                 Txt(entity.name, size = 10.5.sp, weight = FontWeight.SemiBold, color = if (focused) Theme.fg0 else Theme.fg1)
                 Txt(
                     when {
-                        entity.isAction -> "Ausführen"
-                        entity.isOn -> "An"
-                        entity.state == "off" -> "Aus"
+                        entity.isAction -> t("Ausführen", "Run")
+                        entity.isOn -> t("An", "On")
+                        entity.state == "off" -> t("Aus", "Off")
                         else -> entity.state
                     },
                     size = 9.sp,
@@ -347,7 +348,7 @@ fun SearchBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(Icons.search, size = 15.dp, tint = if (focused) Theme.fg1 else Theme.fg4)
-            Txt("Apps durchsuchen", size = 11.5.sp, color = if (focused) Theme.fg2 else Theme.fg4)
+            Txt(t("Apps durchsuchen", "Search apps"), size = 11.5.sp, color = if (focused) Theme.fg2 else Theme.fg4)
         }
     }
 }
@@ -369,7 +370,7 @@ private fun AddTile(onClick: () -> Unit) {
             },
     ) { _ ->
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Txt("+ Hinzufügen", size = 11.sp, color = Theme.fg3)
+            Txt(t("+ Hinzufügen", "+ Add"), size = 11.sp, color = Theme.fg3)
         }
     }
 }

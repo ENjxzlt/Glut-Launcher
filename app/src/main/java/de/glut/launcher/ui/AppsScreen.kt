@@ -1,5 +1,6 @@
 package de.glut.launcher.ui
 
+import de.glut.launcher.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,12 +32,14 @@ import de.glut.launcher.data.AppRepository
 import de.glut.launcher.data.Folder
 import de.glut.launcher.data.Prefs
 
-enum class SortMode(val label: String) {
-    ALPHA("A–Z"),
-    RECENT("Zuletzt genutzt"),
-    FREQUENT("Am häufigsten"),
-    SYSTEM("System"),
-    HIDDEN("Ausgeblendete"),
+enum class SortMode(private val de: String, private val en: String) {
+    ALPHA("A–Z", "A–Z"),
+    RECENT("Zuletzt genutzt", "Recently used"),
+    FREQUENT("Am häufigsten", "Most used"),
+    SYSTEM("System", "System"),
+    HIDDEN("Ausgeblendete", "Hidden");
+
+    val label: String get() = t(de, en)
 }
 
 /** Apps, die in „Alle Apps“ und auf der Startseite erscheinen. */
@@ -85,9 +88,9 @@ fun AppsScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Txt("Alle Apps", size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
+                Txt(t("Alle Apps", "All apps"), size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
                 Txt(
-                    "${visible.size} Apps · $hiddenCount ausgeblendet" +
+                    t("${visible.size} Apps · $hiddenCount ausgeblendet", "${visible.size} apps · $hiddenCount hidden") +
                         if (prefs.hideSystemApps) " · ${apps.count { it.isSystem }} System" else "",
                     size = 11.sp,
                     color = Theme.fg4,
@@ -103,9 +106,9 @@ fun AppsScreen(
         if (shown.isEmpty() && folders.isEmpty()) {
             Txt(
                 when (sort) {
-                    SortMode.HIDDEN -> "Keine ausgeblendeten Apps."
-                    SortMode.SYSTEM -> "Keine Systemapps gefunden."
-                    else -> "Keine Apps gefunden."
+                    SortMode.HIDDEN -> t("Keine ausgeblendeten Apps.", "No hidden apps.")
+                    SortMode.SYSTEM -> t("Keine Systemapps gefunden.", "No system apps found.")
+                    else -> t("Keine Apps gefunden.", "No apps found.")
                 },
                 size = 12.sp,
                 color = Theme.fg4,
@@ -126,7 +129,7 @@ fun AppsScreen(
                 val usage = prefs.usage[app.packageName]
                 when (sort) {
                     SortMode.RECENT -> usage?.let { formatRelative(it.lastUsed, now) }
-                    SortMode.FREQUENT -> usage?.let { "${it.count}× geöffnet" }
+                    SortMode.FREQUENT -> usage?.let { t("${it.count}× geöffnet", "opened ${it.count}×") }
                     else -> null
                 }
             },

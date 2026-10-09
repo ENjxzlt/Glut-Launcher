@@ -1,5 +1,6 @@
 package de.glut.launcher.data
 
+import de.glut.launcher.t
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -102,13 +103,13 @@ class HomeAssistant(private val prefs: Prefs) {
         if (errors != null && errors.length() > 0) {
             return LoginStep.Failed(
                 when (errors.optString("base")) {
-                    "invalid_auth" -> "Benutzername oder Passwort falsch."
-                    "invalid_code" -> "Code falsch."
-                    else -> "Anmeldung abgelehnt."
+                    "invalid_auth" -> t("Benutzername oder Passwort falsch.", "Wrong username or password.")
+                    "invalid_code" -> t("Code falsch.", "Wrong code.")
+                    else -> t("Anmeldung abgelehnt.", "Sign-in rejected.")
                 },
             )
         }
-        return if (step.optString("step_id") == "mfa") LoginStep.NeedsCode(flowId) else LoginStep.Failed("Unerwartete Antwort von Home Assistant.")
+        return if (step.optString("step_id") == "mfa") LoginStep.NeedsCode(flowId) else LoginStep.Failed(t("Unerwartete Antwort von Home Assistant.", "Unexpected response from Home Assistant."))
     }
 
     private fun storeTokens(base: String, tokens: JSONObject) {
@@ -119,7 +120,7 @@ class HomeAssistant(private val prefs: Prefs) {
     }
 
     private fun authed(method: String, path: String, body: String?): String {
-        if (!prefs.haConnected) throw HaException("Nicht mit Home Assistant verbunden.")
+        if (!prefs.haConnected) throw HaException(t("Nicht mit Home Assistant verbunden.", "Not connected to Home Assistant."))
         if (System.currentTimeMillis() > prefs.haTokenExpiry && prefs.haRefreshToken.isNotBlank()) refresh()
         return request(method, prefs.haUrl + path, body, prefs.haAccessToken)
     }
@@ -161,8 +162,8 @@ class HomeAssistant(private val prefs: Prefs) {
             val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             when {
-                code == 401 -> throw HaException("Zugriff verweigert – bitte neu anmelden.")
-                code !in 200..299 -> throw HaException("Home Assistant antwortet mit Fehler $code.")
+                code == 401 -> throw HaException(t("Zugriff verweigert – bitte neu anmelden.", "Access denied – please sign in again."))
+                code !in 200..299 -> throw HaException(t("Home Assistant antwortet mit Fehler $code.", "Home Assistant responded with error $code."))
             }
             return text
         } finally {

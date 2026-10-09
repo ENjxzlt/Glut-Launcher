@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import de.glut.launcher.Language
 import de.glut.launcher.ui.Accent
 import de.glut.launcher.ui.ColorTheme
 import de.glut.launcher.ui.FontChoice
@@ -30,6 +31,7 @@ class Prefs(context: Context) {
     var accent by enumPref("accent", Accent.YELLOW)
     var colorTheme by enumPref("colorTheme", ColorTheme.GRUVBOX_DARK)
     var font by enumPref("font", FontChoice.GEIST)
+    var language by enumPref("language", Language.SYSTEM)
 
     // Musik-Widget und Updates
     var musicWidget by boolPref("musicWidget", true)

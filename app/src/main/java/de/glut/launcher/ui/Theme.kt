@@ -13,6 +13,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import de.glut.launcher.R
+import de.glut.launcher.t
 import de.glut.launcher.data.Prefs
 
 /**
@@ -30,7 +31,7 @@ data class Palette(
 private fun c(hex: Long) = Color(0xFF000000 or hex)
 
 /** Freie Farbschemata (alle unter MIT- oder ähnlicher Lizenz veröffentlicht). */
-enum class ColorTheme(val label: String, val palette: Palette) {
+enum class ColorTheme(private val de: String, val palette: Palette) {
     GRUVBOX_DARK(
         "Gruvbox Dunkel",
         Palette(
@@ -103,7 +104,15 @@ enum class ColorTheme(val label: String, val palette: Palette) {
             c(0xEEE8D5), c(0xC9CFC9), c(0xA5B0AE), c(0x93A1A1), c(0x8A9C9F),
             c(0xDC322F), c(0x859900), c(0xB58900), c(0x268BD2), c(0xD33682), c(0x2AA198), c(0xCB4B16),
         ),
-    ),
+    );
+
+    val label: String
+        get() = when (this) {
+            GRUVBOX_DARK -> t(de, "Gruvbox Dark")
+            GRUVBOX_LIGHT -> t(de, "Gruvbox Light")
+            SOLARIZED -> t(de, "Solarized Dark")
+            else -> de
+        }
 }
 
 /** Freie Schriften (SIL Open Font License). [clock] ist die Schrift der Uhr. */
@@ -156,16 +165,20 @@ object Theme {
     }
 }
 
-enum class TileStyle(val label: String) {
-    TINTED("Eingefärbt"),
-    PLAIN("Schlicht"),
-    ORIGINAL("Original"),
+enum class TileStyle(private val de: String, private val en: String) {
+    TINTED("Eingefärbt", "Tinted"),
+    PLAIN("Schlicht", "Plain"),
+    ORIGINAL("Original", "Original");
+
+    val label: String get() = t(de, en)
 }
 
-enum class Ground(val label: String) {
-    HARD("Hart"),
-    MEDIUM("Mittel"),
-    SOFT("Weich");
+enum class Ground(private val de: String, private val en: String) {
+    HARD("Hart", "Hard"),
+    MEDIUM("Mittel", "Medium"),
+    SOFT("Weich", "Soft");
+
+    val label: String get() = t(de, en)
 
     val color: Color
         get() = when (this) {
@@ -175,19 +188,23 @@ enum class Ground(val label: String) {
         }
 }
 
-enum class Wallpaper(val label: String) {
-    GLUT("Glut"),
-    TIME("Tageszeit"),
-    CONTOURS("Konturen"),
-    PLAIN("Schlicht"),
+enum class Wallpaper(private val de: String, private val en: String) {
+    GLUT("Glut", "Glow"),
+    TIME("Tageszeit", "Time of day"),
+    CONTOURS("Konturen", "Contours"),
+    PLAIN("Schlicht", "Plain");
+
+    val label: String get() = t(de, en)
 }
 
-enum class Accent(val label: String) {
-    YELLOW("Gelb"),
-    ORANGE("Orange"),
-    AQUA("Aqua"),
-    BLUE("Blau"),
-    PURPLE("Violett");
+enum class Accent(private val de: String, private val en: String) {
+    YELLOW("Gelb", "Yellow"),
+    ORANGE("Orange", "Orange"),
+    AQUA("Aqua", "Aqua"),
+    BLUE("Blau", "Blue"),
+    PURPLE("Violett", "Purple");
+
+    val label: String get() = t(de, en)
 
     val color: Color
         get() = when (this) {

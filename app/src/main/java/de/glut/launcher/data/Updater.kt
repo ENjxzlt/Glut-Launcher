@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.glut.launcher.BuildConfig
+import de.glut.launcher.t
 import de.glut.launcher.service.InstallResultReceiver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -46,10 +47,10 @@ class Updater(private val context: Context) {
                 ?.getString("browser_download_url") ?: return@runCatching null
             UpdateInfo(code, name, apk).takeIf { code > BuildConfig.VERSION_CODE }
         }.onFailure {
-            status = "Update-Prüfung fehlgeschlagen: keine Verbindung zu GitHub."
+            status = t("Update-Prüfung fehlgeschlagen: keine Verbindung zu GitHub.", "Update check failed: no connection to GitHub.")
         }.getOrNull().also {
             available = it
-            if (it == null && status == null) status = "Glut Launcher ist aktuell."
+            if (it == null && status == null) status = t("Glut Launcher ist aktuell.", "Glut Launcher is up to date.")
         }
     }
 
@@ -57,13 +58,13 @@ class Updater(private val context: Context) {
     suspend fun install(info: UpdateInfo) {
         if (busy) return
         busy = true
-        status = "Lade Version ${info.versionName} …"
+        status = t("Lade Version ${info.versionName} …", "Downloading version ${info.versionName} …")
         try {
             val file = withContext(Dispatchers.IO) { download(info.apkUrl) }
-            status = "Installiere …"
+            status = t("Installiere …", "Installing …")
             withContext(Dispatchers.IO) { commit(file) }
         } catch (e: Exception) {
-            status = "Update fehlgeschlagen: ${e.message ?: "unbekannter Fehler"}"
+            status = t("Update fehlgeschlagen: ", "Update failed: ") + (e.message ?: t("unbekannter Fehler", "unknown error"))
         } finally {
             busy = false
         }
@@ -90,13 +91,13 @@ class Updater(private val context: Context) {
                 connection.disconnect()
                 connection = URL(URL(url), next).openConnection() as HttpURLConnection
             } else {
-                if (code !in 200..299) throw IllegalStateException("Download-Fehler $code")
+                if (code !in 200..299) throw IllegalStateException(t("Download-Fehler $code", "Download error $code"))
                 connection.inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
                 connection.disconnect()
                 return target
             }
         }
-        throw IllegalStateException("Zu viele Weiterleitungen")
+        throw IllegalStateException(t("Zu viele Weiterleitungen", "Too many redirects"))
     }
 
     private fun commit(apk: File) {

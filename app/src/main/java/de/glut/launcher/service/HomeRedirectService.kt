@@ -99,7 +99,7 @@ class HomeRedirectService : AccessibilityService() {
         if (event.packageName?.toString() != AppRepository.AMAZON_LAUNCHER) return
         if (!Prefs.shouldRedirect(this)) return
         // Zeitmessung: eventTime ist der Zeitpunkt des Ereignisses, uptime der Empfang.
-        Log.i(TAG, "Amazon-Startseite gemeldet: event=${event.eventTime} empfangen=${SystemClock.uptimeMillis()} class=${event.className}")
+        Log.i(TAG, "Amazon home reported: event=${event.eventTime} received=${SystemClock.uptimeMillis()} class=${event.className}")
 
         // Kommt die Amazon-Startseite kurz nach dem Einschalten, darf die Einschalt-App starten.
         val justWoke = wokeAt > 0 && System.currentTimeMillis() - wokeAt < WAKE_WINDOW_MS
@@ -141,11 +141,11 @@ class HomeRedirectService : AccessibilityService() {
             getSystemService(WindowManager::class.java).addView(view, params)
             view.requestFocus()
             cover = view
-            Log.i(TAG, "Sofortbild gezeigt uptime=${SystemClock.uptimeMillis()}")
+            Log.i(TAG, "Snapshot shown uptime=${SystemClock.uptimeMillis()}")
             // Sicherheitsnetz, falls Glut aus irgendeinem Grund nicht erscheint.
             handler.removeCallbacks(hideCoverRunnable)
             handler.postDelayed(hideCoverRunnable, COVER_TIMEOUT_MS)
-        }.onFailure { Log.w(TAG, "Sofortbild nicht möglich: ${it.message}") }
+        }.onFailure { Log.w(TAG, "Snapshot not possible: ${it.message}") }
     }
 
     fun hideCover() {

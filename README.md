@@ -20,7 +20,8 @@ banners, no "recommended for you". Just your apps, in a theme you pick.
 > Use it at your own risk. No warranty of any kind.
 
 > [!NOTE]
-> The app's interface is currently **German only**.
+> The interface is available in **English and German**. By default it follows
+> the device language; change it under *Settings → Sprache / Language*.
 
 ---
 
@@ -194,8 +195,8 @@ your network can connect to it. The settings above persist across reboots and
 in-app updates. You only need to repeat them after uninstalling and
 reinstalling Glut.
 
-Check *Settings → System* in Glut: *Home-Taste umleiten* should say
-*Dienst aktiv*.
+Check *Settings → System* in Glut: *Redirect Home button* should say
+*Service active*.
 
 ## Permissions
 
@@ -216,7 +217,7 @@ to Glut.
 
 ## Updating
 
-In Glut: *Settings → System → Nach Updates suchen*. Glut checks the
+In Glut: *Settings → System → Check for updates*. Glut checks the
 `neuester-build` GitHub release, downloads the APK and hands it to the system
 installer, which asks you to confirm. When opened, Glut also checks on its own,
 at most every six hours (can be turned off).
@@ -228,10 +229,10 @@ will then need to repeat the `adb` steps.
 
 ## Going back to the Amazon home screen
 
-- **For a moment:** *Amazon-Startseite* on the home screen, or in the settings.
+- **For a moment:** *Amazon home* on the home screen, or in the settings.
   The redirect pauses for 10 minutes, e.g. for system updates or Amazon
   profile settings.
-- **Turn the redirect off:** *Settings → System → Home-Taste umleiten*.
+- **Turn the redirect off:** *Settings → System → Redirect Home button*.
 - **Completely:**
   ```sh
   adb shell settings put secure enabled_accessibility_services ""
@@ -304,8 +305,9 @@ Otherwise your build updates itself from this one.
 - **Colour themes** are adaptations of these open-source schemes: Gruvbox,
   Nord, Catppuccin, Dracula, Tokyo Night, Rosé Pine, Everforest and Solarized.
   All credit for the palettes goes to their authors.
-- **Code license:** _not yet chosen_. Until a `LICENSE` file is added, all
-  rights are reserved by default.
+- **Code license:** [GNU General Public License v3.0](LICENSE). You may use,
+  study, share and modify the code; if you distribute modified versions, they
+  must be released under the GPL-3.0 as well.
 
 Amazon, Fire TV and Fire OS are trademarks of Amazon.com, Inc. or its
 affiliates. This project is not affiliated with, endorsed by or sponsored by

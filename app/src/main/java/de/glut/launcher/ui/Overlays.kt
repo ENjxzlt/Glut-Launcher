@@ -1,5 +1,6 @@
 package de.glut.launcher.ui
 
+import de.glut.launcher.t
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
@@ -146,27 +147,27 @@ fun AppOptions(
     val isFavorite = app.packageName in prefs.favorites
     val isHidden = app.packageName in prefs.hidden
     val folder = prefs.folderOf(app.packageName)
-    DialogPanel(app.label, subtitle = folder?.let { "Im Ordner „${it.name}“" }) {
+    DialogPanel(app.label, subtitle = folder?.let { t("Im Ordner „${it.name}“", "In folder “${it.name}”") }) {
         MenuRow(
-            if (isFavorite) "Aus Favoriten entfernen" else "Zu Favoriten hinzufügen",
+            if (isFavorite) t("Aus Favoriten entfernen", "Remove from favourites") else t("Zu Favoriten hinzufügen", "Add to favourites"),
             { prefs.toggleFavorite(app.packageName); onClose() },
             Modifier.focusRequester(first),
         )
         if (isFavorite) {
-            MenuRow("In Favoriten nach links", { prefs.moveFavorite(app.packageName, -1) })
-            MenuRow("In Favoriten nach rechts", { prefs.moveFavorite(app.packageName, 1) })
+            MenuRow(t("In Favoriten nach links", "Move left in favourites"), { prefs.moveFavorite(app.packageName, -1) })
+            MenuRow(t("In Favoriten nach rechts", "Move right in favourites"), { prefs.moveFavorite(app.packageName, 1) })
         }
         if (prefs.foldersEnabled) {
-            MenuRow(if (folder == null) "In Ordner verschieben …" else "In anderen Ordner …", onMoveToFolder)
-            if (folder != null) MenuRow("Aus Ordner nehmen", { prefs.removeFromFolder(app.packageName); onClose() })
+            MenuRow(if (folder == null) t("In Ordner verschieben …", "Move to folder …") else t("In anderen Ordner …", "Move to another folder …"), onMoveToFolder)
+            if (folder != null) MenuRow(t("Aus Ordner nehmen", "Remove from folder"), { prefs.removeFromFolder(app.packageName); onClose() })
         }
         MenuRow(
-            if (isHidden) "Wieder einblenden" else "Ausblenden",
+            if (isHidden) t("Wieder einblenden", "Unhide") else t("Ausblenden", "Hide"),
             { prefs.toggleHidden(app.packageName); onClose() },
         )
-        MenuRow("App-Info", { onAppInfo(); onClose() })
-        MenuRow("Deinstallieren", { onUninstall(); onClose() }, titleColor = Theme.red)
-        MenuRow("Abbrechen", onClose)
+        MenuRow(t("App-Info", "App info"), { onAppInfo(); onClose() })
+        MenuRow(t("Deinstallieren", "Uninstall"), { onUninstall(); onClose() }, titleColor = Theme.red)
+        MenuRow(t("Abbrechen", "Cancel"), onClose)
     }
 }
 
@@ -180,24 +181,24 @@ fun FolderOptions(
 ) {
     val first = rememberInitialFocus()
     val isFavorite = folder.favoriteKey in prefs.favorites
-    DialogPanel(folder.name, subtitle = "Ordner · ${folder.apps.size} Apps") {
-        MenuRow("Öffnen", onOpen, Modifier.focusRequester(first))
-        MenuRow("Umbenennen …", onRename)
+    DialogPanel(folder.name, subtitle = t("Ordner · ${folder.apps.size} Apps", "Folder · ${folder.apps.size} apps")) {
+        MenuRow(t("Öffnen", "Open"), onOpen, Modifier.focusRequester(first))
+        MenuRow(t("Umbenennen …", "Rename …"), onRename)
         MenuRow(
-            if (isFavorite) "Aus Favoriten entfernen" else "Zu Favoriten hinzufügen",
+            if (isFavorite) t("Aus Favoriten entfernen", "Remove from favourites") else t("Zu Favoriten hinzufügen", "Add to favourites"),
             { prefs.toggleFavorite(folder.favoriteKey); onClose() },
         )
         if (isFavorite) {
-            MenuRow("In Favoriten nach links", { prefs.moveFavorite(folder.favoriteKey, -1) })
-            MenuRow("In Favoriten nach rechts", { prefs.moveFavorite(folder.favoriteKey, 1) })
+            MenuRow(t("In Favoriten nach links", "Move left in favourites"), { prefs.moveFavorite(folder.favoriteKey, -1) })
+            MenuRow(t("In Favoriten nach rechts", "Move right in favourites"), { prefs.moveFavorite(folder.favoriteKey, 1) })
         }
         MenuRow(
-            "Ordner auflösen",
+            t("Ordner auflösen", "Delete folder"),
             { prefs.deleteFolder(folder.id); onClose() },
-            subtitle = "Die Apps bleiben installiert.",
+            subtitle = t("Die Apps bleiben installiert.", "The apps stay installed."),
             titleColor = Theme.red,
         )
-        MenuRow("Abbrechen", onClose)
+        MenuRow(t("Abbrechen", "Cancel"), onClose)
     }
 }
 
@@ -228,7 +229,7 @@ fun FolderView(
                 Txt("${apps.size} Apps", size = 11.sp, color = Theme.fg4)
             }
             if (apps.isEmpty()) {
-                Txt("Noch leer. Menü-Taste auf einer App → „In Ordner verschieben“.", size = 11.sp, color = Theme.fg4)
+                Txt(t("Noch leer. Menü-Taste auf einer App → „In Ordner verschieben“.", "Empty. Menu button on an app → “Move to folder”."), size = 11.sp, color = Theme.fg4)
             }
             AppGrid(
                 apps = apps,
@@ -263,7 +264,7 @@ fun ListPicker(
 ) {
     val first = rememberInitialFocus()
     DialogPanel(title, width = 420.dp, subtitle = subtitle) {
-        if (multi) MenuRow("Fertig", onDone, Modifier.focusRequester(first), titleColor = LocalAccent.current)
+        if (multi) MenuRow(t("Fertig", "Done"), onDone, Modifier.focusRequester(first), titleColor = LocalAccent.current)
         items.forEachIndexed { index, item ->
             MenuRow(
                 title = item.label,
@@ -273,8 +274,8 @@ fun ListPicker(
                 modifier = if (!multi && index == 0) Modifier.focusRequester(first) else Modifier,
             )
         }
-        if (items.isEmpty()) Txt("Nichts zur Auswahl.", size = 11.sp, color = Theme.fg4)
-        if (!multi) MenuRow("Abbrechen", onDone)
+        if (items.isEmpty()) Txt(t("Nichts zur Auswahl.", "Nothing to choose from."), size = 11.sp, color = Theme.fg4)
+        if (!multi) MenuRow(t("Abbrechen", "Cancel"), onDone)
     }
 }
 
@@ -324,8 +325,8 @@ fun TextInputDialog(
             },
         )
         Spacer(Modifier.height(8.dp))
-        MenuRow("Übernehmen", { keyboard?.hide(); onDone(text.trim()) }, titleColor = accent)
-        MenuRow("Abbrechen", { keyboard?.hide(); onCancel() })
+        MenuRow(t("Übernehmen", "Apply"), { keyboard?.hide(); onDone(text.trim()) }, titleColor = accent)
+        MenuRow(t("Abbrechen", "Cancel"), { keyboard?.hide(); onCancel() })
     }
 }
 
@@ -339,11 +340,11 @@ fun QuickActionsDialog(
     onClose: () -> Unit,
 ) {
     val first = rememberInitialFocus()
-    DialogPanel("Schnellmenü") {
-        MenuRow("Schlafen", onSleep, Modifier.focusRequester(first))
-        MenuRow("Launcher-Einstellungen", onSettings)
-        MenuRow("Fire-TV-Einstellungen", onFireSettings)
-        MenuRow("Amazon-Startseite öffnen", onAmazonHome, subtitle = "10 Minuten ohne Umleitung")
-        MenuRow("Abbrechen", onClose)
+    DialogPanel(t("Schnellmenü", "Quick menu")) {
+        MenuRow(t("Schlafen", "Sleep"), onSleep, Modifier.focusRequester(first))
+        MenuRow(t("Launcher-Einstellungen", "Launcher settings"), onSettings)
+        MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), onFireSettings)
+        MenuRow(t("Amazon-Startseite öffnen", "Open Amazon home"), onAmazonHome, subtitle = t("10 Minuten ohne Umleitung", "10 minutes without redirect"))
+        MenuRow(t("Abbrechen", "Cancel"), onClose)
     }
 }

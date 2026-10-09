@@ -1,5 +1,6 @@
 package de.glut.launcher.ui
 
+import de.glut.launcher.t
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -106,7 +107,7 @@ fun SearchScreen(
                     .onFocusChanged { fieldFocused = it.isFocused },
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Txt("App-Name eingeben …", size = 15.sp, color = Theme.fg4)
+                        if (query.isEmpty()) Txt(t("App-Name eingeben …", "Type an app name …"), size = 15.sp, color = Theme.fg4)
                         inner()
                     }
                 },
@@ -115,9 +116,9 @@ fun SearchScreen(
 
         Txt(
             when {
-                term.isEmpty() -> "Alle Apps"
-                results.isEmpty() -> "Keine App gefunden für „$term“"
-                else -> "${results.size} Treffer für „$term“"
+                term.isEmpty() -> t("Alle Apps", "All apps")
+                results.isEmpty() -> t("Keine App gefunden für „$term“", "No app found for “$term”")
+                else -> t("${results.size} Treffer für „$term“", "${results.size} results for “$term”")
             },
             size = 11.sp,
             color = Theme.fg4,
