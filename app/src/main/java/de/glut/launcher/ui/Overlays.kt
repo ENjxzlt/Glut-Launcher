@@ -226,7 +226,7 @@ fun FolderView(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.folder, size = 20.dp, tint = LocalAccent.current)
                 Txt(folder.name, size = 20.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
-                Txt("${apps.size} Apps", size = 11.sp, color = Theme.fg4)
+                Txt(t("${apps.size} Apps", "${apps.size} apps"), size = 11.sp, color = Theme.fg4)
             }
             if (apps.isEmpty()) {
                 Txt(t("Noch leer. Menü-Taste auf einer App → „In Ordner verschieben“.", "Empty. Menu button on an app → “Move to folder”."), size = 11.sp, color = Theme.fg4)

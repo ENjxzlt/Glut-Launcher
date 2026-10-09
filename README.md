@@ -27,6 +27,7 @@ banners, no "recommended for you". Just your apps, in a theme you pick.
 
 ## Contents
 
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [How it works (and why it is a bit slow)](#how-it-works-and-why-it-is-a-bit-slow)
 - [Compatibility](#compatibility)
@@ -37,6 +38,20 @@ banners, no "recommended for you". Just your apps, in a theme you pick.
 - [Privacy](#privacy)
 - [Building from source](#building-from-source)
 - [Credits and licenses](#credits-and-licenses)
+
+## Screenshots
+
+Captured on a Fire TV Stick Lite (1080p). The app banners are the apps' own
+artwork, tinted to match the theme.
+
+![Home screen with recently used apps and favourites](docs/screenshots/home.png)
+
+| | |
+|---|---|
+| ![All apps with a folder and sort filters](docs/screenshots/all-apps.png) | ![An opened folder](docs/screenshots/folder.png) |
+| *All apps: sort filters, system apps hidden* | *An opened folder* |
+| ![Settings screen](docs/screenshots/settings.png) | ![Home screen in a different colour theme](docs/screenshots/home-theme.png) |
+| *Settings: everything can be switched on or off* | *Same home screen, different colour theme* |
 
 ## Features
 
