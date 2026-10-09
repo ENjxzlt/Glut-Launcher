@@ -124,7 +124,7 @@ einmal nach Bestätigung. Dafür muss „Apps unbekannter Herkunft“ für Glut
 Launcher erlaubt sein (Entwickleroptionen).
 
 Updates funktionieren nur, wenn alte und neue Version mit demselben Schlüssel
-signiert sind. Der Build-Workflow hält dafür einen Schlüssel im GitHub-Cache und
+signiert sind. Der Build-Workflow legt dafür einmal einen Schlüssel an, hält ihn im GitHub-Cache und
 frischt ihn zweimal pro Woche auf. Geht der Cache trotzdem verloren, meldet das
 Update „anderer Signaturschlüssel“ – dann einmal neu installieren. Dauerhaft
 sicher ist nur ein eigener Schlüssel als Secret (siehe unten).

@@ -18,18 +18,18 @@ jobs:
       - uses: actions/checkout@v4
 
       # Gleicher Schlüssel für jeden Build, sonst lässt sich ein Update nicht
-      # über die installierte Version installieren. Gradle legt den Debug-Schlüssel
-      # beim ersten Build an; danach kommt er aus dem Cache.
+      # über die installierte Version installieren. Der Schlüssel wird einmal
+      # angelegt und liegt danach im GitHub-Cache (nicht im Repo).
       - name: Signaturschlüssel aus dem Cache
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: glut-debug-keystore-v1
+          path: ~/glut-signing
+          key: glut-signing-v2
 
       - name: Nur Cache auffrischen (geplanter Lauf)
         if: github.event_name == 'schedule'
         run: |
-          test -f ~/.android/debug.keystore && echo "Schlüssel vorhanden." || echo "::warning::Schlüssel fehlt im Cache."
+          test -f ~/glut-signing/sideload.jks && echo "Schlüssel vorhanden." || echo "::warning::Schlüssel fehlt im Cache."
 
       - uses: actions/setup-java@v4
         if: github.event_name != 'schedule'
@@ -40,7 +40,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: github.event_name != 'schedule'
 
-      - name: Signaturschlüssel aus Secret holen (optional, hat Vorrang)
+      # Ein eigener Schlüssel aus den Secrets hat Vorrang. Sonst der Cache-Schlüssel
+      # mit den üblichen, öffentlichen Debug-Zugangsdaten ("android").
+      - name: Signaturschlüssel bereitstellen
         if: github.event_name != 'schedule'
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
@@ -48,14 +50,22 @@ jobs:
           if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
             echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sideload.jks"
             echo "SIGNING_STORE_FILE=$RUNNER_TEMP/sideload.jks" >> "$GITHUB_ENV"
+          else
+            mkdir -p ~/glut-signing
+            if [ ! -f ~/glut-signing/sideload.jks ]; then
+              keytool -genkeypair -keystore ~/glut-signing/sideload.jks -storetype JKS \
+                -alias androiddebugkey -storepass android -keypass android \
+                -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            echo "SIGNING_STORE_FILE=$HOME/glut-signing/sideload.jks" >> "$GITHUB_ENV"
           fi
 
       - name: APK bauen
         if: github.event_name != 'schedule'
         env:
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD || 'android' }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS || 'androiddebugkey' }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || 'android' }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
