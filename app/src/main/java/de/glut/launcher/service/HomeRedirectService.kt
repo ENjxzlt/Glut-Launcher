@@ -60,6 +60,16 @@ class HomeRedirectService : AccessibilityService() {
         wokeAt = System.currentTimeMillis() // Dienst startet beim Hochfahren
         ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
         instance = this
+
+        // Beim Hochfahren zeigt Fire OS die Amazon-Startseite, bevor dieser Dienst läuft;
+        // das Ereignis dafür verpassen wir. Kurz nach dem Booten öffnen wir Glut daher selbst.
+        if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS && Prefs.shouldRedirect(this)) {
+            handler.postDelayed({
+                wokeAt = 0L
+                lastLaunchAt = SystemClock.uptimeMillis()
+                openLauncher(woke = true)
+            }, BOOT_DELAY_MS)
+        }
     }
 
     override fun onDestroy() {
@@ -97,6 +107,8 @@ class HomeRedirectService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         if (event.packageName?.toString() != AppRepository.AMAZON_LAUNCHER) return
+        // Im selben Paket stecken auch Amazons Einstellungen; nur die Startseite umleiten.
+        if (!isAmazonHome(event.className?.toString())) return
         if (!Prefs.shouldRedirect(this)) return
         // Zeitmessung: eventTime ist der Zeitpunkt des Ereignisses, uptime der Empfang.
         Log.i(TAG, "Amazon home reported: event=${event.eventTime} received=${SystemClock.uptimeMillis()} class=${event.className}")
@@ -172,6 +184,15 @@ class HomeRedirectService : AccessibilityService() {
         private const val LONG_PRESS_MS = 650L
         private const val APP_SWITCH_BLOCK_MS = 6_000L
         private const val COVER_TIMEOUT_MS = 8_000L
+        private const val BOOT_WINDOW_MS = 3 * 60_000L
+        private const val BOOT_DELAY_MS = 1_500L
+
+        /**
+         * Startseite von Fire OS 7 ist z. B. com.amazon.tv.launcher.ui.HomeActivity_vNext.
+         * Einstellungen, Profilauswahl usw. laufen im selben Paket und bleiben unberührt.
+         */
+        fun isAmazonHome(className: String?): Boolean =
+            className != null && className.contains("Home") && !className.contains("Setting", ignoreCase = true)
         const val TAG = "Glut"
 
         /** Laufender Dienst, z. B. für „Schlafen“ aus dem Schnellmenü. */

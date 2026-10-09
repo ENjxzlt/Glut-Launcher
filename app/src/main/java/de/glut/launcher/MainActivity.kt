@@ -437,6 +437,10 @@ class MainActivity : ComponentActivity() {
     private fun handleWake(intent: Intent?) {
         if (intent?.getBooleanExtra(EXTRA_WOKE, false) != true) return
         intent.removeExtra(EXTRA_WOKE)
+        // Nach dem Hochfahren können Dienst und Boot-Empfänger beide melden; nur einmal reagieren.
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastWakeHandled < 30_000L) return
+        lastWakeHandled = now
         if (!prefs.startupEnabled) return
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val pkg = if (hour in 6..17) prefs.startupDay else prefs.startupEvening
@@ -678,6 +682,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_WOKE = "de.glut.launcher.WOKE"
         const val EXTRA_QUICK_ACTIONS = "de.glut.launcher.QUICK_ACTIONS"
+
+        private var lastWakeHandled = -60_000L
         private const val NEW_FOLDER = "\u0000new"
     }
 }
