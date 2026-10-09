@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
@@ -32,6 +34,7 @@ import de.glut.launcher.data.AppRepository
 import de.glut.launcher.data.Folder
 import de.glut.launcher.data.HaEntity
 import de.glut.launcher.data.HomeAssistant
+import de.glut.launcher.data.LauncherSnapshot
 import de.glut.launcher.data.LoginStep
 import de.glut.launcher.data.MediaWatcher
 import de.glut.launcher.data.Prefs
@@ -345,7 +348,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         log("onResume")
-        Choreographer.getInstance().postFrameCallback { log("erstes Bild") }
+        Choreographer.getInstance().postFrameCallback {
+            log("erstes Bild")
+            // Ein Bild später ist Glut sicher sichtbar: Sofortbild entfernen.
+            window.decorView.post { HomeRedirectService.instance?.hideCover() }
+        }
+        window.decorView.removeCallbacks(captureSnapshot)
+        window.decorView.postDelayed(captureSnapshot, 1500)
         prefs.clearAmazonHomeBypass()
         serviceEnabled = HomeRedirectService.isEnabled(this)
         keyFilterSupported = HomeRedirectService.canFilterKeys()
@@ -354,6 +363,24 @@ class MainActivity : ComponentActivity() {
         endKinoMode()
         refreshSmartHome()
         autoCheckUpdate()
+    }
+
+    override fun onPause() {
+        window.decorView.removeCallbacks(captureSnapshot)
+        super.onPause()
+    }
+
+    /** Merkt sich das Aussehen der Startseite für das Sofortbild beim nächsten Home-Druck. */
+    private val captureSnapshot = Runnable {
+        if (screen != Screen.HOME || overlay != null || !prefs.instantCover) return@Runnable
+        val view = window.decorView
+        if (view.width == 0 || view.height == 0) return@Runnable
+        runCatching {
+            val reuse = LauncherSnapshot.bitmap?.takeIf { it.width == view.width && it.height == view.height }
+            val bitmap = reuse ?: Bitmap.createBitmap(view.width, view.height, Bitmap.Config.RGB_565)
+            view.draw(Canvas(bitmap))
+            LauncherSnapshot.bitmap = bitmap
+        }
     }
 
     override fun onDestroy() {

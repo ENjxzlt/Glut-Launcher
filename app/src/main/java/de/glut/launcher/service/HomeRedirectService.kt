@@ -7,16 +7,21 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.ImageView
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
 import de.glut.launcher.MainActivity
 import de.glut.launcher.data.AppRepository
+import de.glut.launcher.data.LauncherSnapshot
 import de.glut.launcher.data.Prefs
 
 /**
@@ -39,6 +44,11 @@ class HomeRedirectService : AccessibilityService() {
         openLauncher(quickActions = true)
     }
 
+    /** Sofortbild über der Amazon-Startseite, bis Glut wirklich da ist. */
+    private var cover: View? = null
+    private val hideCoverRunnable = Runnable { hideCover() }
+    private var lastLaunchAt = 0L
+
     private val screenOn = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             wokeAt = System.currentTimeMillis()
@@ -55,6 +65,7 @@ class HomeRedirectService : AccessibilityService() {
     override fun onDestroy() {
         if (instance === this) instance = null
         handler.removeCallbacks(longPress)
+        hideCover()
         runCatching { unregisterReceiver(screenOn) }
         super.onDestroy()
     }
@@ -94,7 +105,54 @@ class HomeRedirectService : AccessibilityService() {
         val justWoke = wokeAt > 0 && System.currentTimeMillis() - wokeAt < WAKE_WINDOW_MS
         wokeAt = 0L
 
+        showCover()
+        // Fire OS meldet die Amazon-Startseite oft zweimal; ein Start genügt.
+        val now = SystemClock.uptimeMillis()
+        if (now - lastLaunchAt < APP_SWITCH_BLOCK_MS && !justWoke) return
+        lastLaunchAt = now
         openLauncher(woke = justWoke)
+    }
+
+    /**
+     * Nach der Home-Taste sperrt Android App-Starts für etwa 5 Sekunden
+     * (nur die System-Startseite ist ausgenommen). Ein Overlay des Dienstes
+     * unterliegt dieser Sperre nicht: Wir zeigen sofort das zuletzt gemerkte
+     * Bild der Glut-Startseite, bis die Activity tatsächlich erscheint.
+     */
+    private fun showCover() {
+        if (cover != null || !Prefs.instantCover(this)) return
+        val bitmap = LauncherSnapshot.bitmap ?: return
+        val view = ImageView(this).apply {
+            setImageBitmap(bitmap)
+            scaleType = ImageView.ScaleType.FIT_XY
+            isFocusable = true
+            isFocusableInTouchMode = true
+            // Tasten schlucken, damit nichts versehentlich bei Amazon landet.
+            setOnKeyListener { _, _, _ -> true }
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            PixelFormat.OPAQUE,
+        )
+        runCatching {
+            getSystemService(WindowManager::class.java).addView(view, params)
+            view.requestFocus()
+            cover = view
+            Log.i(TAG, "Sofortbild gezeigt uptime=${SystemClock.uptimeMillis()}")
+            // Sicherheitsnetz, falls Glut aus irgendeinem Grund nicht erscheint.
+            handler.removeCallbacks(hideCoverRunnable)
+            handler.postDelayed(hideCoverRunnable, COVER_TIMEOUT_MS)
+        }.onFailure { Log.w(TAG, "Sofortbild nicht möglich: ${it.message}") }
+    }
+
+    fun hideCover() {
+        handler.removeCallbacks(hideCoverRunnable)
+        val view = cover ?: return
+        cover = null
+        runCatching { getSystemService(WindowManager::class.java).removeViewImmediate(view) }
     }
 
     private fun openLauncher(woke: Boolean = false, quickActions: Boolean = false) {
@@ -112,6 +170,8 @@ class HomeRedirectService : AccessibilityService() {
     companion object {
         private const val WAKE_WINDOW_MS = 60_000L
         private const val LONG_PRESS_MS = 650L
+        private const val APP_SWITCH_BLOCK_MS = 6_000L
+        private const val COVER_TIMEOUT_MS = 8_000L
         const val TAG = "Glut"
 
         /** Laufender Dienst, z. B. für „Schlafen“ aus dem Schnellmenü. */

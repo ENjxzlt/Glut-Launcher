@@ -145,6 +145,12 @@ fun SettingsScreen(
                 value = onOff(prefs.redirectHome),
                 subtitle = if (serviceEnabled) "Dienst aktiv" else "Dienst nicht aktiviert – siehe Anleitung (ADB)",
             )
+            MenuRow(
+                "Sofortbild beim Home-Druck",
+                { prefs.instantCover = !prefs.instantCover },
+                value = onOff(prefs.instantCover),
+                subtitle = "Android sperrt nach der Home-Taste App-Starts für einige Sekunden. Bis dahin zeigt Glut ein Bild der Startseite",
+            )
             if (keyFilterSupported) {
                 MenuRow(
                     "Schnelle Home-Taste",
