@@ -88,7 +88,8 @@ fun AppTile(
             shape = shape,
             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
         ) { focused ->
-            val banner = art?.banner
+            val currentArt = art
+            val banner = currentArt?.banner
             if (showBanner && banner != null) {
                 Image(
                     bitmap = banner,
@@ -97,10 +98,10 @@ fun AppTile(
                     colorFilter = if (style == TileStyle.TINTED) tint else null,
                     modifier = Modifier.fillMaxSize(),
                 )
-            } else if (showBanner && art != null) {
-                GeneratedBanner(app, art, style, tint)
+            } else if (showBanner && currentArt != null) {
+                GeneratedBanner(app, currentArt, style, tint)
             } else {
-                PlainTileContent(app, art, style, focused, meta, large, tint)
+                PlainTileContent(app, currentArt, style, focused, meta, large, tint)
             }
         }
         if (showBanner) {
