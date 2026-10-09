@@ -192,7 +192,7 @@ class MainActivity : ComponentActivity() {
                 onOpenSearch = { screen = Screen.SEARCH },
                 onOpenWifi = ::openWifi,
                 onOpenProfile = ::openProfiles,
-                onOpenSettings = { startSafely(Intent(Settings.ACTION_SETTINGS)) },
+                onOpenSettings = { startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
                 onOpenBluetooth = ::openBluetooth,
                 onOpenAmazonHome = ::openAmazonHome,
             )
@@ -303,7 +303,7 @@ class MainActivity : ComponentActivity() {
                     if (HomeRedirectService.instance?.sleep() != true) toast(t("Schlafen wird auf diesem Gerät nicht unterstützt.", "Sleep is not supported on this device."))
                 },
                 onSettings = { overlay = null; screen = Screen.SETTINGS; focusKey++ },
-                onFireSettings = { closeOverlay(); startSafely(Intent(Settings.ACTION_SETTINGS)) },
+                onFireSettings = { closeOverlay(); startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
                 onAmazonHome = { closeOverlay(); openAmazonHome() },
                 onClose = ::closeOverlay,
             )
@@ -468,8 +468,8 @@ class MainActivity : ComponentActivity() {
      * Wir versuchen die Konto-Einstellungen und fallen auf die Fire-TV-Einstellungen zurück.
      */
     private fun openProfiles() {
-        if (!startSafely(Intent(Settings.ACTION_SYNC_SETTINGS), quiet = true)) {
-            startSafely(Intent(Settings.ACTION_SETTINGS))
+        if (!startAmazonSettings(Intent(Settings.ACTION_SYNC_SETTINGS), quiet = true)) {
+            startAmazonSettings(Intent(Settings.ACTION_SETTINGS))
         }
     }
 
@@ -498,11 +498,11 @@ class MainActivity : ComponentActivity() {
      */
     private fun openSettingsPage(action: String, keywords: List<String>, hint: String) {
         val standard = Intent(action)
-        if (standard.resolveActivity(packageManager) != null && startSafely(standard, quiet = true)) return
+        if (standard.resolveActivity(packageManager) != null && startAmazonSettings(standard, quiet = true)) return
         val component = findAmazonSettingsActivity(keywords)
-        if (component != null && startSafely(Intent().setComponent(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), quiet = true)) return
+        if (component != null && startAmazonSettings(Intent().setComponent(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), quiet = true)) return
         toast(hint)
-        startSafely(Intent(Settings.ACTION_SETTINGS))
+        startAmazonSettings(Intent(Settings.ACTION_SETTINGS))
     }
 
     private fun findAmazonSettingsActivity(keywords: List<String>): ComponentName? {
@@ -521,6 +521,17 @@ class MainActivity : ComponentActivity() {
             return ComponentName(match.first, match.second)
         }
         return null
+    }
+
+    /**
+     * Amazon öffnet seine Einstellungen teils über die eigene Startseite (HomeActivity).
+     * Damit die Umleitung das nicht sofort wieder schließt, pausiert sie kurz.
+     */
+    private fun startAmazonSettings(intent: Intent, quiet: Boolean = false): Boolean {
+        prefs.allowAmazonHomeFor(SETTINGS_GRACE_MS)
+        val started = startSafely(intent, quiet)
+        if (!started) prefs.clearAmazonHomeBypass()
+        return started
     }
 
     private fun startSafely(intent: Intent, quiet: Boolean = false): Boolean =
@@ -618,7 +629,7 @@ class MainActivity : ComponentActivity() {
                 )
                 if (!ok) toast(t("Fire-TV-Einstellungen → Mein Fire TV → Entwickleroptionen → Apps unbekannter Herkunft → Glut Launcher erlauben.", "Fire TV settings → My Fire TV → Developer options → Apps from unknown sources → allow Glut Launcher."))
             }
-            SettingsAction.FIRE_SETTINGS -> startSafely(Intent(Settings.ACTION_SETTINGS))
+            SettingsAction.FIRE_SETTINGS -> startAmazonSettings(Intent(Settings.ACTION_SETTINGS))
             SettingsAction.AMAZON_HOME -> openAmazonHome()
         }
     }
@@ -736,6 +747,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_QUICK_ACTIONS = "de.glut.launcher.QUICK_ACTIONS"
 
         private var lastWakeHandled = -60_000L
+        private const val SETTINGS_GRACE_MS = 5_000L
 
         private val AMAZON_SETTINGS_PACKAGES = listOf(
             "com.amazon.tv.settings.v2",

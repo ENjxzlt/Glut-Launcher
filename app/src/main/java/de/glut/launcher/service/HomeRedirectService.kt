@@ -107,6 +107,7 @@ class HomeRedirectService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         if (event.packageName?.toString() != AppRepository.AMAZON_LAUNCHER) return
+        Log.i(TAG, "Amazon window: class=${event.className} redirect=${Prefs.shouldRedirect(this)}")
         // Im selben Paket stecken auch Amazons Einstellungen; nur die Startseite umleiten.
         if (!isAmazonHome(event.className?.toString())) return
         if (!Prefs.shouldRedirect(this)) return
