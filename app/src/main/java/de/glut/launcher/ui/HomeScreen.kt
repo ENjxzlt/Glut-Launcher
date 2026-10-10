@@ -275,7 +275,12 @@ private fun SmartHomeTile(entity: HaEntity, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Icon(
-                if (entity.isAction) Icons.sliders else Icons.bulb,
+                when (entity.domain) {
+                    "scene", "script" -> Icons.sliders
+                    "fan" -> Icons.fan
+                    "switch", "input_boolean" -> Icons.power
+                    else -> Icons.bulb
+                },
                 size = 17.dp,
                 tint = if (entity.isOn) accent else if (focused) Theme.fg1 else Theme.fg4,
             )
@@ -286,6 +291,8 @@ private fun SmartHomeTile(entity: HaEntity, onClick: () -> Unit) {
                         entity.isAction -> t("Ausführen", "Run")
                         entity.isOn -> t("An", "On")
                         entity.state == "off" -> t("Aus", "Off")
+                        entity.state == "unavailable" -> t("Nicht erreichbar", "Unavailable")
+                        entity.state == "unknown" -> t("Unbekannt", "Unknown")
                         else -> entity.state
                     },
                     size = 9.sp,

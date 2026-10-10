@@ -53,6 +53,10 @@ artwork, tinted to match the theme.
 | ![Settings screen](docs/screenshots/settings.png) | ![Home screen in a different colour theme](docs/screenshots/home-theme.png) |
 | *Settings: everything can be switched on or off* | *Same home screen, different colour theme* |
 
+![Smart home row with Home Assistant lights and a fan](docs/screenshots/smart-home.png)
+
+*Optional smart home row: Home Assistant lights, switches, scenes and scripts (German UI).*
+
 ## Features
 
 **Home screen**

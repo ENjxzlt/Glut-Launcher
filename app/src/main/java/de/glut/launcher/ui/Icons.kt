@@ -56,6 +56,8 @@ object Icons {
     val previous = lineIcon("M18 6l-8 6l8 6z M6 6v12")
     val next = lineIcon("M6 6l8 6l-8 6z M18 6v12")
     val music = lineIcon("M9 18V5l11-2v13 M9 18a3 3 0 1 1-6 0a3 3 0 1 1 6 0z M20 16a3 3 0 1 1-6 0a3 3 0 1 1 6 0z")
+    val fan = lineIcon("M12 12m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0 M12 10.5c0-4 1-7 3.5-7s2 3.5-2 6 M13.5 12c4 0 7 1 7 3.5s-3.5 2-6-2 M12 13.5c0 4-1 7-3.5 7s-2-3.5 2-6 M10.5 12c-4 0-7-1-7-3.5s3.5-2 6 2")
+    val power = lineIcon("M12 3v8 M7 6.5a7 7 0 1 0 10 0")
     val check = lineIcon("M5 12l5 5l9-10")
     val folder = lineIcon("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z")
     val bulb = lineIcon("M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z")
