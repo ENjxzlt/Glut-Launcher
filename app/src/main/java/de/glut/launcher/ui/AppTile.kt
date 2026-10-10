@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,12 +26,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.glut.launcher.data.AppArt
+import de.glut.launcher.t
 import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
 
@@ -115,9 +118,51 @@ fun AppTile(
     }
 }
 
-/** Ersatz-Banner für Apps ohne eigenes: Logo oder Symbol auf seiner Hauptfarbe. */
+/** Eigene Kachel für vorinstallierte Apps ohne Banner (ohne fremde Logos). */
+private data class CustomTile(val icon: ImageVector, val title: String, val color: () -> Color)
+
+private fun customTileFor(label: String): CustomTile? {
+    // Kurze Titel, damit sie auch in kleine Kacheln passen; der volle Name steht darunter.
+    val l = label.lowercase()
+    return when {
+        "game" in l || "spiele" in l -> CustomTile(Icons.gamepad, t("Spiele", "Games"), { Theme.purple })
+        "kids" in l || "kinder" in l -> CustomTile(Icons.kids, "Kids", { Theme.yellow })
+        "photo" in l || "foto" in l -> CustomTile(Icons.photo, t("Fotos", "Photos"), { Theme.blue })
+        "silk" in l || "browser" in l || "internet" in l -> CustomTile(Icons.globe, "Silk", { Theme.aqua })
+        else -> null
+    }
+}
+
+@Composable
+private fun CustomTileContent(tile: CustomTile, style: TileStyle) {
+    val color = tile.color()
+    val background = lerp(Theme.bg1, color, if (style == TileStyle.TINTED) 0.28f else 0.5f)
+    BoxWithConstraints(Modifier.fillMaxSize().background(background), contentAlignment = Alignment.Center) {
+        val h = maxHeight
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(h * 0.08f),
+            modifier = Modifier.padding(horizontal = h * 0.14f),
+        ) {
+            Icon(tile.icon, size = h * 0.36f, tint = color)
+            Txt(
+                tile.title,
+                size = (h.value * 0.2f).sp,
+                weight = FontWeight.SemiBold,
+                color = Theme.fg0,
+            )
+        }
+    }
+}
+
+/** Ersatz-Banner für Apps ohne eigenes: eigene Kachel, Logo oder Symbol auf seiner Hauptfarbe. */
 @Composable
 private fun GeneratedBanner(app: AppEntry, art: AppArt, style: TileStyle, tint: ColorFilter) {
+    val custom = customTileFor(app.label)
+    if (custom != null) {
+        CustomTileContent(custom, style)
+        return
+    }
     val base = art.iconColor ?: Theme.swatchFor(app.packageName)
     // Eingefärbt: Farbe stark Richtung Schema-Fläche ziehen, Original: kräftiger lassen.
     val background = lerp(Theme.bg1, base, if (style == TileStyle.TINTED) 0.45f else 0.8f)
