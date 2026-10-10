@@ -316,10 +316,15 @@ The release notes end with `versionCode=` and `versionName=` lines, which the
 in-app updater reads. The version code is the workflow run number, so every
 build is newer than the one before.
 
-To publish a release: add a section to `CHANGELOG.md`, commit, then
+To publish a release: add a section to `CHANGELOG.md` and commit. Then either
+push a tag
+
 ```sh
 git tag v1.0.1 && git push origin v1.0.1
 ```
+
+or run the workflow manually (*Actions → Build APK → Run workflow*) with the
+version (e.g. `1.0.1`); GitHub then creates the tag itself.
 
 ### Signing
 
