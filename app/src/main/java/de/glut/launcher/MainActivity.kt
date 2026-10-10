@@ -394,6 +394,8 @@ class MainActivity : ComponentActivity() {
     // --- Navigation ---
 
     private fun goHome() {
+        // Nach Änderungen in den Einstellungen (z. B. Geräteauswahl) die Smart-Home-Leiste neu laden.
+        if (screen == Screen.SETTINGS) refreshSmartHome()
         screen = Screen.HOME
         focusKey++
     }
@@ -597,7 +599,10 @@ class MainActivity : ComponentActivity() {
                     title = t("Geräte für die Startseite", "Devices for the home screen"),
                     items = entities.map { PickItem(it.id, it.name, it.id) },
                     isSelected = { it in prefs.haTiles },
-                    onSelect = { id -> prefs.haTiles = if (id in prefs.haTiles) prefs.haTiles - id else prefs.haTiles + id },
+                    onSelect = { id ->
+                        prefs.haTiles = if (id in prefs.haTiles) prefs.haTiles - id else prefs.haTiles + id
+                        refreshSmartHome()
+                    },
                     multi = true,
                 )
             }
@@ -700,6 +705,8 @@ class MainActivity : ComponentActivity() {
                 val byId = all.associateBy { it.id }
                 smartHome.clear()
                 smartHome.addAll(prefs.haTiles.mapNotNull { byId[it] })
+            }.onFailure {
+                haStatus = it.message ?: t("Home Assistant nicht erreichbar.", "Home Assistant not reachable.")
             }
         }
     }
