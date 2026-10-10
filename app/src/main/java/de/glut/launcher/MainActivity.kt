@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
         repository = AppRepository(this)
         homeAssistant = HomeAssistant(prefs)
         media = MediaWatcher(this)
-        updater = Updater(this)
+        updater = Updater(this) { prefs.betaUpdates }
 
         setContent {
             val now = rememberNow()

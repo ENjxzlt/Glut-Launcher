@@ -24,7 +24,7 @@ data class UpdateInfo(val versionCode: Int, val versionName: String, val apkUrl:
  * Sucht auf GitHub nach einer neueren Version und installiert sie über den
  * Paket-Installer. Android fragt vor der Installation nach Bestätigung.
  */
-class Updater(private val context: Context) {
+class Updater(private val context: Context, private val beta: () -> Boolean = { false }) {
     var available by mutableStateOf<UpdateInfo?>(null)
         private set
     var status by mutableStateOf<String?>(null)
@@ -37,7 +37,7 @@ class Updater(private val context: Context) {
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
         status = null
         runCatching {
-            val json = JSONObject(get(RELEASE_API))
+            val json = JSONObject(get(if (beta()) BETA_API else STABLE_API))
             val body = json.optString("body")
             val code = Regex("versionCode=(\\d+)").find(body)?.groupValues?.get(1)?.toInt() ?: return@runCatching null
             val name = Regex("versionName=([\\w.\\-]+)").find(body)?.groupValues?.get(1) ?: code.toString()
@@ -134,6 +134,12 @@ class Updater(private val context: Context) {
     }
 
     companion object {
-        private const val RELEASE_API = "https://api.github.com/repos/ENjxzlt/Glut-Launcher/releases/tags/neuester-build"
+        private const val REPO_API = "https://api.github.com/repos/ENjxzlt/Glut-Launcher"
+
+        /** Neueste stabile Version (GitHub „latest“ überspringt Vorabversionen). */
+        private const val STABLE_API = "$REPO_API/releases/latest"
+
+        /** Automatischer Build jeder Änderung, als Vorabversion veröffentlicht. */
+        private const val BETA_API = "$REPO_API/releases/tags/neuester-build"
     }
 }

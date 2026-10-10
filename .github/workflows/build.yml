@@ -1,10 +1,11 @@
-name: APK bauen
+name: Build APK
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
   workflow_dispatch:
-  # Hält den zwischengespeicherten Signaturschlüssel am Leben
-  # (GitHub löscht Caches, die 7 Tage nicht benutzt wurden).
+  # Keeps the cached signing key alive (GitHub drops caches unused for 7 days).
   schedule:
     - cron: "17 4 * * 1,4"
 
@@ -14,22 +15,25 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      IS_DEFAULT_BRANCH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     steps:
       - uses: actions/checkout@v4
 
-      # Gleicher Schlüssel für jeden Build, sonst lässt sich ein Update nicht
-      # über die installierte Version installieren. Der Schlüssel wird einmal
-      # angelegt und liegt danach im GitHub-Cache (nicht im Repo).
-      - name: Signaturschlüssel aus dem Cache
+      # Every build must be signed with the same key, otherwise in-app updates
+      # cannot install over the existing version. The key is created once and
+      # then lives in the Actions cache (never in the repository).
+      - name: Restore signing key
         uses: actions/cache@v4
         with:
           path: ~/glut-signing
           key: glut-signing-v2
 
-      - name: Nur Cache auffrischen (geplanter Lauf)
+      - name: Touch cache only (scheduled run)
         if: github.event_name == 'schedule'
         run: |
-          test -f ~/glut-signing/sideload.jks && echo "Schlüssel vorhanden." || echo "::warning::Schlüssel fehlt im Cache."
+          test -f ~/glut-signing/sideload.jks && echo "Key present." || echo "::warning::Signing key missing from cache."
 
       - uses: actions/setup-java@v4
         if: github.event_name != 'schedule'
@@ -40,9 +44,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: github.event_name != 'schedule'
 
-      # Ein eigener Schlüssel aus den Secrets hat Vorrang. Sonst der Cache-Schlüssel
-      # mit den üblichen, öffentlichen Debug-Zugangsdaten ("android").
-      - name: Signaturschlüssel bereitstellen
+      # A key from repository secrets takes precedence. Otherwise the cached key
+      # with the standard public debug credentials ("android") is used.
+      - name: Provide signing key
         if: github.event_name != 'schedule'
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
@@ -60,7 +64,16 @@ jobs:
             echo "SIGNING_STORE_FILE=$HOME/glut-signing/sideload.jks" >> "$GITHUB_ENV"
           fi
 
-      - name: APK bauen
+      - name: Version name
+        if: github.event_name != 'schedule'
+        run: |
+          if [ "$IS_TAG" = "true" ]; then
+            echo "GLUT_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "GLUT_VERSION_NAME=dev-$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build APK
         if: github.event_name != 'schedule'
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD || 'android' }}
@@ -69,28 +82,51 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk glut-launcher.apk
 
       - uses: actions/upload-artifact@v4
         if: github.event_name != 'schedule'
         with:
-          name: glut-launcher-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: glut-launcher-${{ env.GLUT_VERSION_NAME }}
+          path: glut-launcher.apk
 
-      # Feste Download-Adresse für die Downloader-App auf dem Fire TV:
-      # https://github.com/ENjxzlt/Glut-Launcher/releases/latest/download/glut-launcher.apk
-      # Die Zeilen versionCode=/versionName= liest die Update-Funktion im Launcher.
-      - name: Release aktualisieren
-        if: github.event_name != 'schedule' && github.ref == 'refs/heads/ccr-579bb9e7-stpfdp'
+      # Beta channel: every push to the default branch replaces the
+      # "neuester-build" pre-release. The in-app updater reads the
+      # versionCode=/versionName= lines from the release notes.
+      - name: Publish beta (pre-release)
+        if: github.event_name != 'schedule' && env.IS_TAG != 'true' && (env.IS_DEFAULT_BRANCH == 'true' || github.ref == 'refs/heads/ccr-579bb9e7-stpfdp')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk glut-launcher.apk
           gh release delete neuester-build --yes --cleanup-tag || true
           gh release create neuester-build glut-launcher.apk \
             --target "$GITHUB_SHA" \
-            --latest \
-            --title "Glut Launcher 0.2.$GITHUB_RUN_NUMBER" \
-            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Installation: siehe README.
+            --prerelease \
+            --title "Glut Launcher $GLUT_VERSION_NAME (beta)" \
+            --notes "Automatic build of ${GITHUB_SHA::7}. Untested – for stable versions use the latest release.
 
           versionCode=$GITHUB_RUN_NUMBER
-          versionName=0.2.$GITHUB_RUN_NUMBER"
+          versionName=$GLUT_VERSION_NAME"
+
+      # Stable channel: a tag like v1.0.0 creates a regular release that
+      # becomes "latest". Notes come from the matching CHANGELOG.md section.
+      - name: Publish stable release
+        if: github.event_name != 'schedule' && env.IS_TAG == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v v="## [$GLUT_VERSION_NAME]" '
+            index($0, v) == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::No CHANGELOG.md section for $GLUT_VERSION_NAME"
+            exit 1
+          fi
+          printf '\n---\n\nversionCode=%s\nversionName=%s\n' "$GITHUB_RUN_NUMBER" "$GLUT_VERSION_NAME" >> notes.md
+          gh release create "$GITHUB_REF_NAME" glut-launcher.apk \
+            --verify-tag \
+            --latest \
+            --title "Glut Launcher $GLUT_VERSION_NAME" \
+            --notes-file notes.md

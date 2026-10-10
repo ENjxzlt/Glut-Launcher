@@ -21,7 +21,8 @@ android {
         // Auf GitHub zählt jeder Build hoch; daran erkennt der Launcher Updates.
         val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionCode = build
-        versionName = "0.2.$build"
+        // Release-Tags (v1.0.0) setzen den Namen, sonst Entwicklungs-Build.
+        versionName = System.getenv("GLUT_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "dev-$build"
     }
 
     signingConfigs {

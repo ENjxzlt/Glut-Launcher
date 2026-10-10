@@ -9,6 +9,12 @@
   No sponsored rows, no banners, no “recommended for you”. Just your apps, in a theme you pick.
 </p>
 
+<p align="center">
+  <a href="https://github.com/ENjxzlt/Glut-Launcher/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ENjxzlt/Glut-Launcher?label=release"></a>
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
+  <img alt="Fire OS 7+" src="https://img.shields.io/badge/Fire%20OS-7%2B-orange">
+</p>
+
 > [!WARNING]
 > **This is a vibe-coded hobby project.**
 > Almost all of the code was written by an AI assistant (Claude) in a single
@@ -242,10 +248,18 @@ to Glut.
 
 ## Updating
 
-In Glut: *Settings → System → Check for updates*. Glut checks the
-`neuester-build` GitHub release, downloads the APK and hands it to the system
-installer, which asks you to confirm. When opened, Glut also checks on its own,
-at most every six hours (can be turned off).
+In Glut: *Settings → System → Check for updates*. Glut downloads the APK and
+hands it to the system installer, which asks you to confirm. When opened, Glut
+also checks on its own, at most every six hours (can be turned off).
+
+There are two channels:
+
+| Channel | Source | For |
+|---|---|---|
+| **Stable** (default) | the [latest release](https://github.com/ENjxzlt/Glut-Launcher/releases/latest), e.g. `v1.0.0` | everyone |
+| **Beta** (*Settings → System → Beta versions*) | the `neuester-build` pre-release, rebuilt on every change | testers; may be broken |
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 Updates only install if the new APK is signed with the same key as the
 installed one (see [Signing](#signing)). If you get a "different signature"
@@ -289,11 +303,23 @@ Without signing configuration the release APK is unsigned. See below.
 
 ### Continuous integration
 
-`.github/workflows/build.yml` builds the release APK on every push, uploads it
-as a workflow artifact and, for the main development branch, replaces the
-`neuester-build` release. The release notes contain `versionCode=` and
-`versionName=` lines, which the in-app updater reads. The version code is the
-workflow run number.
+`.github/workflows/build.yml` builds the release APK on every push and uploads
+it as a workflow artifact.
+
+- **Push to the default branch:** replaces the `neuester-build` pre-release
+  (beta channel), version name `dev-<run number>`.
+- **Push a tag `vX.Y.Z`:** creates a regular release `X.Y.Z` (stable channel).
+  The release notes are taken from the matching `## [X.Y.Z]` section of
+  `CHANGELOG.md`; the build fails if that section is missing.
+
+The release notes end with `versionCode=` and `versionName=` lines, which the
+in-app updater reads. The version code is the workflow run number, so every
+build is newer than the one before.
+
+To publish a release: add a section to `CHANGELOG.md`, commit, then
+```sh
+git tag v1.0.1 && git push origin v1.0.1
+```
 
 ### Signing
 

@@ -36,6 +36,7 @@ class Prefs(context: Context) {
     // Musik-Widget und Updates
     var musicWidget by boolPref("musicWidget", true)
     var autoUpdateCheck by boolPref("autoUpdateCheck", true)
+    var betaUpdates by boolPref("betaUpdates", false)
     var lastUpdateCheck by pref("lastUpdateCheck", 0L, { it.toLongOrNull() }, { it.toString() })
 
     // Startseite

@@ -189,6 +189,15 @@ fun SettingsScreen(
                 if (!updater.canInstall()) MenuRow(t("Installation erlauben …", "Allow installation …"), { onAction(SettingsAction.UNKNOWN_SOURCES) })
             }
             MenuRow(t("Automatisch nach Updates suchen", "Check for updates automatically"), { prefs.autoUpdateCheck = !prefs.autoUpdateCheck }, value = onOff(prefs.autoUpdateCheck))
+            MenuRow(
+                t("Beta-Versionen", "Beta versions"),
+                { prefs.betaUpdates = !prefs.betaUpdates; updater.clearStatus() },
+                value = onOff(prefs.betaUpdates),
+                subtitle = t(
+                    "Jede Änderung sofort, ungetestet. Aus: nur stabile Versionen",
+                    "Every change right away, untested. Off: stable releases only",
+                ),
+            )
             MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), { onAction(SettingsAction.FIRE_SETTINGS) })
             MenuRow(
                 t("Neu starten", "Restart"),
