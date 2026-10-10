@@ -63,11 +63,17 @@ class HomeRedirectService : AccessibilityService() {
 
         // Beim Hochfahren zeigt Fire OS die Amazon-Startseite, bevor dieser Dienst läuft;
         // das Ereignis dafür verpassen wir. Kurz nach dem Booten öffnen wir Glut daher selbst.
-        if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS && Prefs.shouldRedirect(this)) {
+        // Dasselbe nach einem Update von Glut: Android startet den Dienst neu, während
+        // schon die Amazon-Startseite zu sehen ist.
+        val justBooted = SystemClock.elapsedRealtime() < BOOT_WINDOW_MS
+        val justUpdated = runCatching {
+            System.currentTimeMillis() - packageManager.getPackageInfo(packageName, 0).lastUpdateTime < UPDATE_WINDOW_MS
+        }.getOrDefault(false)
+        if ((justBooted || justUpdated) && Prefs.shouldRedirect(this)) {
             handler.postDelayed({
                 wokeAt = 0L
                 lastLaunchAt = SystemClock.uptimeMillis()
-                openLauncher(woke = true)
+                openLauncher(woke = justBooted)
             }, BOOT_DELAY_MS)
         }
     }
@@ -187,6 +193,7 @@ class HomeRedirectService : AccessibilityService() {
         private const val COVER_TIMEOUT_MS = 8_000L
         private const val BOOT_WINDOW_MS = 3 * 60_000L
         private const val BOOT_DELAY_MS = 1_500L
+        private const val UPDATE_WINDOW_MS = 2 * 60_000L
 
         /**
          * Startseite von Fire OS 7 ist z. B. com.amazon.tv.launcher.ui.HomeActivity_vNext.
