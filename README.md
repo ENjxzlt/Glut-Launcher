@@ -1,7 +1,13 @@
-# Glut Launcher
+<p align="center">
+  <img src="docs/logo.png" alt="Glut Launcher logo" width="112">
+</p>
 
-A calm, ad-free home screen for Amazon Fire TV sticks. No sponsored rows, no
-banners, no "recommended for you". Just your apps, in a theme you pick.
+<h1 align="center">Glut Launcher</h1>
+
+<p align="center">
+  A calm, ad-free home screen for Amazon Fire TV sticks.<br>
+  No sponsored rows, no banners, no “recommended for you”. Just your apps, in a theme you pick.
+</p>
 
 > [!WARNING]
 > **This is a vibe-coded hobby project.**
