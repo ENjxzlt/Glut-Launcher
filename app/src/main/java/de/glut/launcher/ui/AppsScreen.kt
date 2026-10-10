@@ -159,8 +159,13 @@ fun AppGrid(
         columns = GridCells.Fixed(columns),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 40.dp),
-        modifier = modifier,
+        contentPadding = PaddingValues(
+            start = 6.dp + ShadowBleedX,
+            end = 6.dp + ShadowBleedX,
+            top = 6.dp + ShadowBleedY,
+            bottom = 40.dp + ShadowBleedY,
+        ),
+        modifier = modifier.bleed(ShadowBleedX, ShadowBleedY),
     ) {
         itemsIndexed(folders, key = { _, f -> "folder:" + f.id }) { index, folder ->
             FolderTile(

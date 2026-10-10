@@ -15,6 +15,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -82,3 +84,28 @@ fun KeyHint(key: String, label: String) {
         Txt(label, size = 10.sp, color = Theme.fg4)
     }
 }
+
+/**
+ * Vergrößert den Zeichenbereich einer Reihe oder eines Rasters um [horizontal]/[vertical],
+ * ohne das Layout zu verschieben. Zusammen mit gleich großem contentPadding haben
+ * Fokus-Schatten und Vergrößerung Platz, statt an der Kante abgeschnitten zu werden.
+ */
+fun Modifier.bleed(horizontal: Dp, vertical: Dp): Modifier = layout { measurable, constraints ->
+    val h = horizontal.roundToPx()
+    val v = vertical.roundToPx()
+    val widened = constraints.copy(
+        minWidth = if (constraints.hasBoundedWidth) constraints.minWidth + 2 * h else constraints.minWidth,
+        maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + 2 * h else constraints.maxWidth,
+        minHeight = if (constraints.hasBoundedHeight) constraints.minHeight + 2 * v else constraints.minHeight,
+        maxHeight = if (constraints.hasBoundedHeight) constraints.maxHeight + 2 * v else constraints.maxHeight,
+    )
+    val placeable = measurable.measure(widened)
+    layout(
+        (placeable.width - 2 * h).coerceAtLeast(0),
+        (placeable.height - 2 * v).coerceAtLeast(0),
+    ) { placeable.place(-h, -v) }
+}
+
+/** Platz für Schatten rund um Kachelreihen. */
+val ShadowBleedX = 24.dp
+val ShadowBleedY = 20.dp

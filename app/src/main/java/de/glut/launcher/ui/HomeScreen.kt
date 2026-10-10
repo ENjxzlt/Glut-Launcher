@@ -136,7 +136,8 @@ fun HomeScreen(
                 Section(t("Zuletzt genutzt", "Recently used")) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp + ShadowBleedX, vertical = 6.dp + ShadowBleedY),
+                        modifier = Modifier.bleed(ShadowBleedX, ShadowBleedY),
                     ) {
                         itemsIndexed(recents, key = { _, app -> app.packageName }) { index, app ->
                             AppTile(
@@ -158,7 +159,8 @@ fun HomeScreen(
             Section(t("Favoriten", "Favourites")) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp + ShadowBleedX, vertical = 6.dp + ShadowBleedY),
+                    modifier = Modifier.bleed(ShadowBleedX, ShadowBleedY),
                 ) {
                     itemsIndexed(favorites, key = { _, item -> if (item is Folder) item.favoriteKey else (item as AppEntry).packageName }) { index, item ->
                         val focus = if (index == 0 && focusFavorite) firstFocusModifier else Modifier
@@ -190,7 +192,8 @@ fun HomeScreen(
                 Section("Smart Home") {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp + ShadowBleedX, vertical = 4.dp + ShadowBleedY),
+                        modifier = Modifier.bleed(ShadowBleedX, ShadowBleedY),
                     ) {
                         itemsIndexed(smartHome, key = { _, e -> e.id }) { _, entity ->
                             SmartHomeTile(entity, onClick = { onSmartHome(entity) })
