@@ -337,11 +337,13 @@ fun QuickActionsDialog(
     onSettings: () -> Unit,
     onFireSettings: () -> Unit,
     onAmazonHome: () -> Unit,
+    onRestart: () -> Unit,
     onClose: () -> Unit,
 ) {
     val first = rememberInitialFocus()
     DialogPanel(t("Schnellmenü", "Quick menu")) {
         MenuRow(t("Schlafen", "Sleep"), onSleep, Modifier.focusRequester(first))
+        MenuRow(t("Neu starten", "Restart"), onRestart)
         MenuRow(t("Launcher-Einstellungen", "Launcher settings"), onSettings)
         MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), onFireSettings)
         MenuRow(t("Amazon-Startseite öffnen", "Open Amazon home"), onAmazonHome, subtitle = t("10 Minuten ohne Umleitung", "10 minutes without redirect"))

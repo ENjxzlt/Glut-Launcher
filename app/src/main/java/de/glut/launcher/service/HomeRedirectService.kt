@@ -107,6 +107,9 @@ class HomeRedirectService : AccessibilityService() {
         return true
     }
 
+    /** System-Einschaltmenü (Neu starten / Ausschalten), sofern Fire OS es anbietet. */
+    fun powerDialog(): Boolean = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+
     /** Fire TV schlafen legen (Android 9+). */
     fun sleep(): Boolean = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
 

@@ -305,6 +305,7 @@ class MainActivity : ComponentActivity() {
                 onSettings = { overlay = null; screen = Screen.SETTINGS; focusKey++ },
                 onFireSettings = { closeOverlay(); startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
                 onAmazonHome = { closeOverlay(); openAmazonHome() },
+                onRestart = { closeOverlay(); restart() },
                 onClose = ::closeOverlay,
             )
             is Overlay.Input -> TextInputDialog(
@@ -475,6 +476,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Apps dürfen nicht selbst neu starten. Wir öffnen das System-Einschaltmenü über den
+     * Bedienungshilfen-Dienst, sonst „Mein Fire TV“ mit dem Neustart-Eintrag.
+     */
+    private fun restart() {
+        if (HomeRedirectService.instance?.powerDialog() == true) return
+        openSettingsPage(
+            action = "",
+            keywords = listOf("MyFireTv", "MyFireTV", "DeviceAndSoftware", "AboutActivity", "SystemActivity"),
+            hint = t("Neu starten: Mein Fire TV → Neu starten.", "To restart: My Fire TV → Restart."),
+            alwaysHint = true,
+        )
+    }
+
     private fun openBluetooth() = openSettingsPage(
         action = Settings.ACTION_BLUETOOTH_SETTINGS,
         keywords = listOf("ControllersAndBluetooth", "BluetoothSettings", "Bluetooth", "Controllers"),
@@ -498,11 +513,18 @@ class MainActivity : ComponentActivity() {
      * die Standard-Adresse, suchen dann in Amazons Einstellungs-Paketen nach einer passenden
      * öffentlichen Seite und öffnen sonst die allgemeinen Einstellungen mit einem Hinweis.
      */
-    private fun openSettingsPage(action: String, keywords: List<String>, hint: String) {
-        val standard = Intent(action)
-        if (standard.resolveActivity(packageManager) != null && startAmazonSettings(standard, quiet = true)) return
+    private fun openSettingsPage(action: String, keywords: List<String>, hint: String, alwaysHint: Boolean = false) {
+        if (alwaysHint) toast(hint)
+        if (action.isNotEmpty()) {
+            val standard = Intent(action)
+            if (standard.resolveActivity(packageManager) != null && startAmazonSettings(standard, quiet = true)) return
+        }
         val component = findAmazonSettingsActivity(keywords)
         if (component != null && startAmazonSettings(Intent().setComponent(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), quiet = true)) return
+        if (alwaysHint) {
+            startAmazonSettings(Intent(Settings.ACTION_SETTINGS))
+            return
+        }
         toast(hint)
         startAmazonSettings(Intent(Settings.ACTION_SETTINGS))
     }
@@ -636,6 +658,7 @@ class MainActivity : ComponentActivity() {
             }
             SettingsAction.FIRE_SETTINGS -> startAmazonSettings(Intent(Settings.ACTION_SETTINGS))
             SettingsAction.AMAZON_HOME -> openAmazonHome()
+            SettingsAction.REBOOT -> restart()
         }
     }
 

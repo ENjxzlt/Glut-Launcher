@@ -33,7 +33,7 @@ enum class SettingsAction {
     HA_URL, HA_LOGIN, HA_TOKEN, HA_LOGOUT, HA_TILES,
     KINO_APPS, KINO_START, KINO_END,
     UPDATE_CHECK, UPDATE_INSTALL, UNKNOWN_SOURCES,
-    FIRE_SETTINGS, AMAZON_HOME,
+    FIRE_SETTINGS, AMAZON_HOME, REBOOT,
 }
 
 private fun onOff(value: Boolean) = if (value) t("An", "On") else t("Aus", "Off")
@@ -190,6 +190,11 @@ fun SettingsScreen(
             }
             MenuRow(t("Automatisch nach Updates suchen", "Check for updates automatically"), { prefs.autoUpdateCheck = !prefs.autoUpdateCheck }, value = onOff(prefs.autoUpdateCheck))
             MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), { onAction(SettingsAction.FIRE_SETTINGS) })
+            MenuRow(
+                t("Neu starten", "Restart"),
+                { onAction(SettingsAction.REBOOT) },
+                subtitle = t("Öffnet das Einschaltmenü oder „Mein Fire TV“", "Opens the power menu or “My Fire TV”"),
+            )
             MenuRow(
                 t("Amazon-Startseite öffnen", "Open Amazon home"),
                 { onAction(SettingsAction.AMAZON_HOME) },
