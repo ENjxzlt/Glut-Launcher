@@ -3,6 +3,22 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] – 2026-10-27
+
+### Added
+- *System* pages (Settings → System & network): Wi-Fi list with connect,
+  password entry and forget; user picker; ADB over network; a *root mode* that
+  restarts or sleeps the device directly. Needs a rooted device (`su`).
+- *Custom image/video* background (Settings → Background). Put files in
+  `/sdcard/Android/data/de.glut.launcher/files/backgrounds`; videos loop
+  silently and pause while the launcher is in the background. Adjustable dimming.
+
+### Changed
+- New permissions: Wi-Fi state/changes, network state and location (granted via
+  root, Android only shows Wi-Fi scan results to apps with location access).
+
+> Not tested on a device before release.
+
 ## [1.1.0] – 2026-10-27
 
 ### Added
