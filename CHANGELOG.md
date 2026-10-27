@@ -3,6 +3,18 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] – 2026-10-27
+
+### Added
+- Own screensaver that replaces Amazon's (Settings → Screensaver, needs root).
+  Source: your own images and videos (folder `screensaver` in the app's storage)
+  or random stock photos from picsum.photos (Unsplash licence). Soft crossfade
+  with slow zoom, silent videos, optional clock, adjustable change interval and
+  start delay, preview.
+
+> Image, video and clock playback were tested on a Fire TV Stick 4K Max; the
+> settings page, switching in the app and stock photos were not.
+
 ## [1.3.1] – 2026-10-27
 
 ### Fixed
