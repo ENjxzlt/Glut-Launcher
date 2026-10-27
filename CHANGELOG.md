@@ -3,6 +3,13 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] – 2026-10-27
+
+### Fixed
+- The update check no longer fails when GitHub's API rate limit is reached
+  (60 requests per hour per IP address). It falls back to the release page, and
+  the error message now names the real reason.
+
 ## [1.3.0] – 2026-10-27
 
 ### Added
