@@ -9,6 +9,7 @@ import de.glut.launcher.ui.Accent
 import de.glut.launcher.ui.ColorTheme
 import de.glut.launcher.ui.FontChoice
 import de.glut.launcher.ui.Ground
+import de.glut.launcher.ui.ScreensaverSource
 import de.glut.launcher.ui.TileStyle
 import de.glut.launcher.ui.Wallpaper
 import kotlin.properties.ReadWriteProperty
@@ -42,6 +43,13 @@ class Prefs(context: Context) {
     var autoUpdateCheck by boolPref("autoUpdateCheck", true)
     var betaUpdates by boolPref("betaUpdates", false)
     var lastUpdateCheck by pref("lastUpdateCheck", 0L, { it.toLongOrNull() }, { it.toString() })
+
+    // Bildschirmschoner
+    var screensaverSource by enumPref("screensaverSource", ScreensaverSource.FILES)
+    var screensaverInterval by pref("screensaverInterval", 15, { it.toIntOrNull() }, { it.toString() })
+    var screensaverClock by boolPref("screensaverClock", true)
+    /** Was vor Glut als Bildschirmschoner eingestellt war, zum Zurücksetzen. */
+    var screensaverPrevious by stringPref("screensaverPrevious")
 
     // Startseite
     var redirectHome by boolPref("redirectHome", true)

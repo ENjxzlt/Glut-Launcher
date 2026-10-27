@@ -165,6 +165,13 @@ object Theme {
     }
 }
 
+enum class ScreensaverSource(private val de: String, private val en: String) {
+    FILES("Eigene Dateien", "Own files"),
+    STOCK("Stock-Bilder", "Stock photos");
+
+    val label: String get() = t(de, en)
+}
+
 enum class TileStyle(private val de: String, private val en: String) {
     TINTED("Eingefärbt", "Tinted"),
     PLAIN("Schlicht", "Plain"),

@@ -44,6 +44,7 @@ import de.glut.launcher.data.BluetoothControl
 import de.glut.launcher.data.BtDevice
 import de.glut.launcher.data.DeviceInfo
 import de.glut.launcher.data.Prefs
+import de.glut.launcher.data.ScreensaverMedia
 import de.glut.launcher.data.SystemControl
 import de.glut.launcher.data.RootShell
 import de.glut.launcher.data.SystemUser
@@ -142,6 +143,9 @@ class MainActivity : ComponentActivity() {
     private var systemStatus by mutableStateOf<String?>(null)
     private var settingsPage by mutableStateOf(SettingsPage.ROOT)
     private var rootChecked = false
+    private var screensaverActive by mutableStateOf(false)
+    private var screenTimeoutMinutes by mutableStateOf(5)
+    private var screensaverFiles by mutableStateOf(0)
     /** Seiten wie WLAN öffnen sich auch von den oberen Tasten; „Zurück“ führt dann zur Startseite. */
     private var subReturnsHome = false
     private lateinit var bluetooth: BluetoothControl
@@ -339,6 +343,10 @@ class MainActivity : ComponentActivity() {
                     soundEffects = soundEffects,
                     info = deviceInfo,
                     status = systemStatus,
+                    screensaverActive = screensaverActive,
+                    screensaverFiles = screensaverFiles,
+                    screensaverFolder = ScreensaverMedia.dir(this@MainActivity).path.removePrefix("/storage/emulated/0").removePrefix("/sdcard"),
+                    screenTimeoutMinutes = screenTimeoutMinutes,
                 ),
                 appLabel = { pkg -> if (pkg.isBlank()) t("Startseite", "Home") else apps.firstOrNull { it.packageName == pkg }?.label ?: pkg },
                 entityLabel = { id -> if (id.isBlank()) t("Nichts", "Nothing") else haEntities.firstOrNull { it.id == id }?.name ?: id },
@@ -653,7 +661,7 @@ class MainActivity : ComponentActivity() {
 
     private val systemPages = setOf(
         SettingsPage.SYSTEM, SettingsPage.NETWORK, SettingsPage.SOUND, SettingsPage.APPS,
-        SettingsPage.ENERGY, SettingsPage.INFO, SettingsPage.DEVELOPER,
+        SettingsPage.ENERGY, SettingsPage.INFO, SettingsPage.DEVELOPER, SettingsPage.SCREENSAVER,
     )
 
     private fun openSettings(page: SettingsPage = SettingsPage.ROOT) {
@@ -673,6 +681,9 @@ class MainActivity : ComponentActivity() {
         volumePercent = SystemControl.volumePercent(this)
         adbDebugging = SystemControl.adbDebugging(this)
         soundEffects = SystemControl.soundEffects(this)
+        screensaverActive = SystemControl.screensaverComponent(this)?.contains(packageName) == true
+        screenTimeoutMinutes = SystemControl.screenTimeoutMinutes(this)
+        screensaverFiles = ScreensaverMedia.list(this).size
         btEnabled = bluetooth.enabled
         btDevices = bluetooth.devices()
         lifecycleScope.launch {
@@ -807,6 +818,24 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun toggleScreensaver() {
+        if (!rootAvailable) {
+            systemStatus = t("Den Bildschirmschoner ersetzen braucht Root.", "Replacing the screensaver needs root.")
+            return
+        }
+        lifecycleScope.launch {
+            val current = SystemControl.screensaverComponent(this@MainActivity).orEmpty()
+            val ok = if (current.contains(packageName)) {
+                SystemControl.setScreensaver(prefs.screensaverPrevious.ifBlank { SystemControl.AMAZON_DREAM })
+            } else {
+                prefs.screensaverPrevious = current
+                SystemControl.setScreensaver(SystemControl.DREAM_COMPONENT)
+            }
+            screensaverActive = SystemControl.screensaverComponent(this@MainActivity)?.contains(packageName) == true
+            if (!ok) systemStatus = t("Umstellen fehlgeschlagen.", "Switching failed.")
+        }
+    }
+
     private fun toggleAdbNetwork() {
         if (!rootAvailable) {
             systemStatus = t("ADB über Netzwerk braucht Root.", "ADB over network needs root.")
@@ -928,6 +957,21 @@ class MainActivity : ComponentActivity() {
                     SystemControl.setSoundEffects(!soundEffects)
                     soundEffects = SystemControl.soundEffects(this@MainActivity)
                 }
+            }
+            SettingsAction.SCREENSAVER_TOGGLE -> toggleScreensaver()
+            SettingsAction.SCREENSAVER_TIMEOUT -> lifecycleScope.launch {
+                if (!rootAvailable) {
+                    systemStatus = t("Die Zeit ändern braucht Root.", "Changing the delay needs root.")
+                } else {
+                    val steps = listOf(1, 2, 5, 10, 15, 30)
+                    val next = steps.firstOrNull { it > screenTimeoutMinutes } ?: steps.first()
+                    SystemControl.setScreenTimeoutMinutes(next)
+                    screenTimeoutMinutes = SystemControl.screenTimeoutMinutes(this@MainActivity)
+                }
+            }
+            SettingsAction.SCREENSAVER_PREVIEW -> lifecycleScope.launch {
+                if (!rootAvailable) systemStatus = t("Die Vorschau braucht Root.", "The preview needs root.")
+                else if (!SystemControl.previewScreensaver()) systemStatus = t("Vorschau fehlgeschlagen.", "Preview failed.")
             }
             SettingsAction.CYCLE_VOLUME -> volumePercent = SystemControl.cycleVolume(this)
             SettingsAction.CHECK_ROOT -> lifecycleScope.launch {

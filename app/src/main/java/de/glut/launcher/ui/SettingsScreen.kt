@@ -37,6 +37,7 @@ enum class SettingsAction {
     OPEN_WIFI, OPEN_BLUETOOTH, OPEN_USERS,
     TOGGLE_ROOT_MODE, TOGGLE_ADB_NET, TOGGLE_ADB_DEBUG, TOGGLE_SOUND_FX, CYCLE_VOLUME,
     PICK_MANAGED_APP, CHECK_ROOT,
+    SCREENSAVER_TOGGLE, SCREENSAVER_TIMEOUT, SCREENSAVER_PREVIEW,
 }
 
 /** Seiten der Einstellungen. Jede Seite kennt ihre übergeordnete, „Zurück“ führt dorthin. */
@@ -47,6 +48,7 @@ enum class SettingsPage(private val de: String, private val en: String, val pare
     WAKE("Beim Einschalten", "On wake-up", ROOT),
     SMART_HOME("Smart Home", "Smart home", ROOT),
     HOME_BUTTON("Home-Taste", "Home button", ROOT),
+    SCREENSAVER("Bildschirmschoner", "Screensaver", ROOT),
     UPDATES("Updates & Info", "Updates & info", ROOT),
     SYSTEM("System", "System", ROOT),
     NETWORK("Netzwerk", "Network", SYSTEM),
@@ -75,6 +77,10 @@ data class SystemState(
     val soundEffects: Boolean = true,
     val info: List<Pair<String, String>> = emptyList(),
     val status: String? = null,
+    val screensaverActive: Boolean = false,
+    val screensaverFiles: Int = 0,
+    val screensaverFolder: String = "",
+    val screenTimeoutMinutes: Int = 5,
 )
 
 private fun onOff(value: Boolean) = if (value) t("An", "On") else t("Aus", "Off")
@@ -126,6 +132,7 @@ fun SettingsScreen(
                     SubMenuRow(SettingsPage.WAKE, t("Einschalt-App: ", "Startup app: ") + onOff(prefs.startupEnabled), Modifier, onNavigate)
                     SubMenuRow(SettingsPage.SMART_HOME, "Home Assistant: " + onOff(prefs.haEnabled), Modifier, onNavigate)
                     if (!onlyLauncher) SubMenuRow(SettingsPage.HOME_BUTTON, t("Umleitung: ", "Redirect: ") + onOff(prefs.redirectHome), Modifier, onNavigate)
+                    if (onlyLauncher) SubMenuRow(SettingsPage.SCREENSAVER, if (system.screensaverActive) t("Glut-Bildschirmschoner aktiv", "Glut screensaver active") else t("Amazon-Bildschirmschoner", "Amazon screensaver"), Modifier, onNavigate)
                     SubMenuRow(SettingsPage.UPDATES, t("Version ", "Version ") + updater.currentVersion, Modifier, onNavigate)
                     if (onlyLauncher) SubMenuRow(SettingsPage.SYSTEM, t("WLAN, Bluetooth, Ton, Apps, Energie", "Wi-Fi, Bluetooth, sound, apps, power"), Modifier, onNavigate)
                 }
@@ -267,6 +274,40 @@ fun SettingsScreen(
                         { onAction(SettingsAction.REBOOT) },
                         subtitle = t("Öffnet das Einschaltmenü oder „Mein Fire TV“", "Opens the power menu or “My Fire TV”"),
                     )
+                }
+
+                SettingsPage.SCREENSAVER -> {
+                    MenuRow(
+                        t("Glut-Bildschirmschoner", "Glut screensaver"),
+                        { onAction(SettingsAction.SCREENSAVER_TOGGLE) },
+                        firstRow,
+                        value = onOff(system.screensaverActive),
+                        subtitle = if (system.rootAvailable) t("Ersetzt den Bildschirmschoner von Amazon", "Replaces Amazon's screensaver") else t("Braucht Root", "Needs root"),
+                    )
+                    MenuRow(
+                        t("Quelle", "Source"),
+                        { prefs.screensaverSource = prefs.screensaverSource.next(ScreensaverSource.entries.toTypedArray()) },
+                        value = prefs.screensaverSource.label,
+                        subtitle = if (prefs.screensaverSource == ScreensaverSource.STOCK) {
+                            t("Zufällige Fotos von picsum.photos (Unsplash-Lizenz), braucht Internet", "Random photos from picsum.photos (Unsplash licence), needs internet")
+                        } else {
+                            t("${system.screensaverFiles} Dateien in ${system.screensaverFolder}", "${system.screensaverFiles} files in ${system.screensaverFolder}")
+                        },
+                    )
+                    MenuRow(
+                        t("Wechselzeit", "Change every"),
+                        { prefs.screensaverInterval = when { prefs.screensaverInterval < 10 -> 10; prefs.screensaverInterval < 15 -> 15; prefs.screensaverInterval < 30 -> 30; prefs.screensaverInterval < 60 -> 60; else -> 10 } },
+                        value = "${prefs.screensaverInterval} s",
+                        subtitle = t("Videos laufen bis zum Ende", "Videos play to the end"),
+                    )
+                    MenuRow(t("Uhr anzeigen", "Show clock"), { prefs.screensaverClock = !prefs.screensaverClock }, value = onOff(prefs.screensaverClock))
+                    MenuRow(
+                        t("Startet nach", "Starts after"),
+                        { onAction(SettingsAction.SCREENSAVER_TIMEOUT) },
+                        value = t("${system.screenTimeoutMinutes} Min.", "${system.screenTimeoutMinutes} min"),
+                        subtitle = if (system.rootAvailable) null else t("Braucht Root", "Needs root"),
+                    )
+                    MenuRow(t("Vorschau", "Preview"), { onAction(SettingsAction.SCREENSAVER_PREVIEW) }, subtitle = t("Startet den Bildschirmschoner jetzt", "Starts the screensaver now"))
                 }
 
                 SettingsPage.UPDATES -> {

@@ -127,7 +127,7 @@ private fun VideoLayer(file: File, modifier: Modifier) {
 }
 
 /** TextureView streckt das Video; so füllt es die Fläche wie „Crop“ ohne Verzerrung. */
-private fun cover(view: TextureView, videoWidth: Int, videoHeight: Int) {
+internal fun cover(view: TextureView, videoWidth: Int, videoHeight: Int) {
     if (videoWidth <= 0 || videoHeight <= 0 || view.width == 0 || view.height == 0) return
     val videoAspect = videoWidth.toFloat() / videoHeight
     val viewAspect = view.width.toFloat() / view.height

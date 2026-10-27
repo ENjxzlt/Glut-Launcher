@@ -35,6 +35,28 @@ object SystemControl {
 
     suspend fun allowInstalls(packageName: String) = RootShell.run("appops set $packageName REQUEST_INSTALL_PACKAGES allow").isSuccess
 
+    // --- Bildschirmschoner ---
+
+    const val DREAM_COMPONENT = "de.glut.launcher/de.glut.launcher.service.GlutDream"
+    const val AMAZON_DREAM = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"
+
+    fun screensaverComponent(context: Context): String? =
+        Settings.Secure.getString(context.contentResolver, "screensaver_components")
+
+    suspend fun setScreensaver(component: String): Boolean {
+        val ok = RootShell.run("settings put secure screensaver_components $component").isSuccess
+        RootShell.run("settings put secure screensaver_default_component $component")
+        RootShell.run("settings put secure screensaver_enabled 1")
+        return ok
+    }
+
+    fun screenTimeoutMinutes(context: Context): Int =
+        Settings.System.getInt(context.contentResolver, "screen_off_timeout", 300_000) / 60_000
+
+    suspend fun setScreenTimeoutMinutes(minutes: Int) = RootShell.run("settings put system screen_off_timeout ${minutes * 60_000}").isSuccess
+
+    suspend fun previewScreensaver() = RootShell.run("am start -n com.android.systemui/.Somnambulator").isSuccess
+
     // --- Apps verwalten ---
 
     suspend fun forceStop(pkg: String) = RootShell.run("am force-stop ${quote(pkg)}").isSuccess
