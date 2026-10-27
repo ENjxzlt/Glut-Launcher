@@ -28,6 +28,10 @@ class Prefs(context: Context) {
     var tileStyle by enumPref("tileStyle", TileStyle.TINTED)
     var wallpaper by enumPref("wallpaper", Wallpaper.GLUT)
     var ground by enumPref("ground", Ground.MEDIUM)
+    /** Dateiname im Ordner für eigene Hintergründe. */
+    var customBackground by stringPref("customBackground")
+    /** Abdunkelung über eigenen Hintergründen in Prozent. */
+    var backgroundDim by pref("backgroundDim", 40, { it.toIntOrNull() }, { it.toString() })
     var accent by enumPref("accent", Accent.YELLOW)
     var colorTheme by enumPref("colorTheme", ColorTheme.GRUVBOX_DARK)
     var font by enumPref("font", FontChoice.GEIST)
@@ -43,6 +47,8 @@ class Prefs(context: Context) {
     var redirectHome by boolPref("redirectHome", true)
     var fastHome by boolPref("fastHome", true)
     var instantCover by boolPref("instantCover", true)
+    /** Neustart und Schlafen direkt per Root statt über Amazons Menüs. */
+    var rootMode by boolPref("rootMode", false)
     var favorites by listPref("favorites")
     var hidden by pref("hidden", emptySet<String>(), { s -> s.split('\n').filter { it.isNotBlank() }.toSet() }, { it.joinToString("\n") })
     var foldersEnabled by boolPref("foldersEnabled", true)

@@ -192,7 +192,8 @@ enum class Wallpaper(private val de: String, private val en: String) {
     GLUT("Glut", "Glow"),
     TIME("Tageszeit", "Time of day"),
     CONTOURS("Konturen", "Contours"),
-    PLAIN("Schlicht", "Plain");
+    PLAIN("Schlicht", "Plain"),
+    CUSTOM("Eigenes Bild/Video", "Custom image/video");
 
     val label: String get() = t(de, en)
 }

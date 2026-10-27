@@ -33,7 +33,7 @@ enum class SettingsAction {
     HA_URL, HA_LOGIN, HA_TOKEN, HA_LOGOUT, HA_TILES,
     KINO_APPS, KINO_START, KINO_END,
     UPDATE_CHECK, UPDATE_INSTALL, UNKNOWN_SOURCES,
-    FIRE_SETTINGS, AMAZON_HOME, REBOOT,
+    FIRE_SETTINGS, AMAZON_HOME, REBOOT, SYSTEM, BACKGROUND_FILE,
 }
 
 private fun onOff(value: Boolean) = if (value) t("An", "On") else t("Aus", "Off")
@@ -85,6 +85,19 @@ fun SettingsScreen(
                 value = prefs.wallpaper.label,
                 subtitle = if (prefs.wallpaper == Wallpaper.TIME) t("Morgens kühl, tagsüber hell, abends warm, nachts dunkel", "Cool in the morning, bright by day, warm in the evening, dark at night") else null,
             )
+            if (prefs.wallpaper == Wallpaper.CUSTOM) {
+                MenuRow(
+                    t("Bild oder Video wählen", "Choose image or video"),
+                    { onAction(SettingsAction.BACKGROUND_FILE) },
+                    value = prefs.customBackground.ifBlank { t("keine Datei", "no file") },
+                    subtitle = t("Per ADB oder USB in den Ordner „backgrounds“ legen", "Put files in the “backgrounds” folder via ADB or USB"),
+                )
+                MenuRow(
+                    t("Abdunkeln", "Dim"),
+                    { prefs.backgroundDim = if (prefs.backgroundDim >= 80) 0 else prefs.backgroundDim + 20 },
+                    value = "${prefs.backgroundDim} %",
+                )
+            }
             MenuRow(t("Kontrast", "Contrast"), { prefs.ground = prefs.ground.next(Ground.entries.toTypedArray()) }, value = prefs.ground.label)
             MenuRow(t("Kachelstil", "Tile style"), { prefs.tileStyle = prefs.tileStyle.next(TileStyle.entries.toTypedArray()) }, value = prefs.tileStyle.label)
 
@@ -148,6 +161,11 @@ fun SettingsScreen(
             }
 
             Header("System")
+            MenuRow(
+                t("System & Netzwerk (Root)", "System & network (root)"),
+                { onAction(SettingsAction.SYSTEM) },
+                subtitle = t("WLAN, Benutzer, Energie", "Wi-Fi, users, power"),
+            )
             if (onlyLauncher) {
                 MenuRow(
                     t("Einziger Launcher", "Only launcher"),

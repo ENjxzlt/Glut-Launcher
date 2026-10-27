@@ -1,6 +1,9 @@
 package de.glut.launcher.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import java.io.File
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -18,6 +21,22 @@ fun WallpaperBackground(
     accent: Color,
     hour: Int,
     modifier: Modifier = Modifier,
+    custom: File? = null,
+    dim: Int = 40,
+) {
+    Box(modifier) {
+        if (wallpaper == Wallpaper.CUSTOM && custom != null) CustomBackgroundLayer(custom, dim, Modifier.fillMaxSize())
+        else GeneratedBackground(wallpaper, ground, accent, hour, Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+private fun GeneratedBackground(
+    wallpaper: Wallpaper,
+    ground: Ground,
+    accent: Color,
+    hour: Int,
+    modifier: Modifier,
 ) {
     Canvas(modifier) {
         drawRect(ground.color)
@@ -25,7 +44,7 @@ fun WallpaperBackground(
         val h = size.height
         val m = size.maxDimension
         when (wallpaper) {
-            Wallpaper.GLUT -> evening()
+            Wallpaper.GLUT, Wallpaper.CUSTOM -> evening()
             Wallpaper.TIME -> when (hour) {
                 in 6..10 -> morning()
                 in 11..16 -> day()

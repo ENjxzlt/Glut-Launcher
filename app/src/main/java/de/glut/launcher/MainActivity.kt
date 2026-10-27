@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -40,11 +41,18 @@ import de.glut.launcher.data.LauncherSnapshot
 import de.glut.launcher.data.LoginStep
 import de.glut.launcher.data.MediaWatcher
 import de.glut.launcher.data.Prefs
+import de.glut.launcher.data.RootShell
+import de.glut.launcher.data.SystemUser
+import de.glut.launcher.data.SystemUsers
+import de.glut.launcher.data.WifiControl
+import de.glut.launcher.data.WifiNetwork
+import de.glut.launcher.data.WifiState
 import de.glut.launcher.data.Updater
 import de.glut.launcher.service.HomeRedirectService
 import de.glut.launcher.ui.AppOptions
 import de.glut.launcher.ui.AppsScreen
 import de.glut.launcher.ui.ColorTheme
+import de.glut.launcher.ui.CustomBackgrounds
 import de.glut.launcher.ui.FolderOptions
 import de.glut.launcher.ui.FolderView
 import de.glut.launcher.ui.FontChoice
@@ -56,6 +64,9 @@ import de.glut.launcher.ui.QuickActionsDialog
 import de.glut.launcher.ui.SearchScreen
 import de.glut.launcher.ui.SettingsAction
 import de.glut.launcher.ui.SettingsScreen
+import de.glut.launcher.ui.SystemScreen
+import de.glut.launcher.ui.UsersScreen
+import de.glut.launcher.ui.WifiScreen
 import de.glut.launcher.ui.TextInputDialog
 import de.glut.launcher.ui.Theme
 import de.glut.launcher.ui.WallpaperBackground
@@ -65,7 +76,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-private enum class Screen { HOME, APPS, SEARCH, SETTINGS }
+private enum class Screen { HOME, APPS, SEARCH, SETTINGS, SYSTEM, WIFI, USERS }
 
 /** Fenster über dem aktuellen Bildschirm. [back] ist das Fenster, zu dem „Zurück“ führt. */
 private sealed interface Overlay {
@@ -115,6 +126,15 @@ class MainActivity : ComponentActivity() {
     private var haEntities by mutableStateOf<List<HaEntity>>(emptyList())
     private var haStatus by mutableStateOf<String?>(null)
 
+    private lateinit var wifi: WifiControl
+    private var rootAvailable by mutableStateOf(false)
+    private var wifiState by mutableStateOf<WifiState?>(null)
+    private var wifiNetworks by mutableStateOf<List<WifiNetwork>>(emptyList())
+    private var wifiScanning by mutableStateOf(false)
+    private var systemUsers by mutableStateOf<List<SystemUser>?>(null)
+    private var adbNetwork by mutableStateOf(false)
+    private var systemStatus by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         log("onCreate")
@@ -122,6 +142,7 @@ class MainActivity : ComponentActivity() {
         Theme.prefs = prefs
         repository = AppRepository(this)
         homeAssistant = HomeAssistant(prefs)
+        wifi = WifiControl(this)
         media = MediaWatcher(this)
         updater = Updater(this) { prefs.betaUpdates }
 
@@ -130,7 +151,8 @@ class MainActivity : ComponentActivity() {
             val hour = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.HOUR_OF_DAY)
             CompositionLocalProvider(LocalAccent provides prefs.accent.color) {
                 Box(Modifier.fillMaxSize()) {
-                    WallpaperBackground(prefs.wallpaper, prefs.ground, prefs.accent.color, hour, Modifier.fillMaxSize())
+                    val customFile = remember(prefs.customBackground, prefs.wallpaper) { CustomBackgrounds.resolve(this@MainActivity, prefs.customBackground) }
+                    WallpaperBackground(prefs.wallpaper, prefs.ground, prefs.accent.color, hour, Modifier.fillMaxSize(), customFile, prefs.backgroundDim)
                     ScreenContent()
                     // key: jedes Fenster bekommt frischen Zustand (z. B. leeres Eingabefeld)
                     overlay?.let { key(it) { OverlayContent(it) } }
@@ -140,6 +162,8 @@ class MainActivity : ComponentActivity() {
                     BackHandler {
                         when {
                             overlay != null -> closeOverlay()
+                            screen == Screen.WIFI || screen == Screen.USERS -> { screen = Screen.SYSTEM; focusKey++ }
+                            screen == Screen.SYSTEM -> { screen = Screen.SETTINGS; focusKey++ }
                             screen != Screen.HOME -> goHome()
                         }
                     }
@@ -207,6 +231,64 @@ class MainActivity : ComponentActivity() {
                 onOptions = { overlay = Overlay.AppMenu(it) },
                 onOpenFolder = { overlay = Overlay.FolderOpen(it.id) },
                 onFolderMenu = { overlay = Overlay.FolderMenu(it.id) },
+            )
+            Screen.SYSTEM -> SystemScreen(
+                focusKey = focusKey,
+                rootAvailable = rootAvailable,
+                rootMode = prefs.rootMode,
+                wifiSummary = wifiState?.ssid ?: if (wifiState?.enabled == false) t("Aus", "Off") else t("Nicht verbunden", "Not connected"),
+                userSummary = systemUsers?.firstOrNull { it.current }?.name ?: "–",
+                adbNetwork = adbNetwork,
+                status = systemStatus,
+                onWifi = ::openWifiPage,
+                onUsers = ::openUsersPage,
+                onToggleRootMode = {
+                    prefs.rootMode = !prefs.rootMode
+                    if (prefs.rootMode && !rootAvailable) systemStatus = t("Kein Root gefunden – der Modus greift erst mit Root.", "No root found – the mode only works with root.")
+                },
+                onToggleAdb = ::toggleAdbNetwork,
+                onSleep = ::sleepNow,
+                onRestart = ::restart,
+                onFireSettings = { startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
+            )
+            Screen.WIFI -> WifiScreen(
+                focusKey = focusKey,
+                state = wifiState,
+                networks = wifiNetworks,
+                scanning = wifiScanning,
+                status = systemStatus,
+                onToggle = {
+                    wifi.setEnabled(wifiState?.enabled != true)
+                    lifecycleScope.launch { kotlinx.coroutines.delay(1500); refreshWifi() }
+                },
+                onRescan = { lifecycleScope.launch { refreshWifi() } },
+                onNetwork = ::onWifiNetwork,
+                onForget = { network ->
+                    systemStatus = if (wifi.forget(network.ssid)) t("„${network.ssid}“ vergessen.", "Forgot “${network.ssid}”.")
+                    else t("Lässt sich nicht vergessen.", "Can't be forgotten.")
+                    lifecycleScope.launch { refreshWifi() }
+                },
+            )
+            Screen.USERS -> UsersScreen(
+                focusKey = focusKey,
+                users = systemUsers,
+                rootAvailable = rootAvailable,
+                rootMode = prefs.rootMode,
+                status = systemStatus,
+                onUser = { user ->
+                    if (user.current) {
+                        systemStatus = t("${user.name} ist schon aktiv.", "${user.name} is already active.")
+                    } else {
+                        lifecycleScope.launch {
+                            systemStatus = if (SystemUsers.switchTo(user.id)) t("Wechsle zu ${user.name} …", "Switching to ${user.name} …")
+                            else t("Wechsel fehlgeschlagen.", "Switch failed.")
+                        }
+                    }
+                },
+                onRoot = {
+                    prefs.rootMode = !prefs.rootMode
+                    systemStatus = if (prefs.rootMode) t("Root-Modus an.", "Root mode on.") else t("Root-Modus aus.", "Root mode off.")
+                },
             )
             Screen.SEARCH -> SearchScreen(
                 apps = apps,
@@ -304,7 +386,7 @@ class MainActivity : ComponentActivity() {
                 onlyLauncher = onlyLauncher,
                 onSleep = {
                     closeOverlay()
-                    if (HomeRedirectService.instance?.sleep() != true) toast(t("Schlafen wird auf diesem Gerät nicht unterstützt.", "Sleep is not supported on this device."))
+                    sleepNow()
                 },
                 onSettings = { overlay = null; screen = Screen.SETTINGS; focusKey++ },
                 onFireSettings = { closeOverlay(); startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
@@ -506,6 +588,10 @@ class MainActivity : ComponentActivity() {
      * Bedienungshilfen-Dienst, sonst „Mein Fire TV“ mit dem Neustart-Eintrag.
      */
     private fun restart() {
+        if (prefs.rootMode && rootAvailable) {
+            lifecycleScope.launch { RootShell.run("reboot") }
+            return
+        }
         if (HomeRedirectService.instance?.powerDialog() == true) return
         openSettingsPage(
             action = "",
@@ -513,6 +599,91 @@ class MainActivity : ComponentActivity() {
             hint = t("Neu starten: Mein Fire TV → Neu starten.", "To restart: My Fire TV → Restart."),
             alwaysHint = true,
         )
+    }
+
+    private fun sleepNow() {
+        if (prefs.rootMode && rootAvailable) {
+            lifecycleScope.launch { RootShell.run("input keyevent 223") }
+        } else if (HomeRedirectService.instance?.sleep() != true) {
+            toast(t("Schlafen wird auf diesem Gerät nicht unterstützt.", "Sleep is not supported on this device."))
+        }
+    }
+
+    // --- System (Root) ---
+
+    private fun openSystem() {
+        systemStatus = null
+        screen = Screen.SYSTEM
+        focusKey++
+        lifecycleScope.launch {
+            rootAvailable = RootShell.available()
+            if (rootAvailable) {
+                systemUsers = SystemUsers.list()
+                adbNetwork = SystemUsers.adbOverNetwork()
+            }
+            wifi.ensureAccess()
+            wifiState = wifi.state()
+        }
+    }
+
+    private fun openWifiPage() {
+        systemStatus = null
+        screen = Screen.WIFI
+        focusKey++
+        lifecycleScope.launch { refreshWifi() }
+    }
+
+    private suspend fun refreshWifi() {
+        wifiScanning = true
+        wifiState = wifi.state()
+        wifiNetworks = if (wifiState?.enabled == true) wifi.scan() else emptyList()
+        wifiState = wifi.state()
+        wifiScanning = false
+    }
+
+    private fun onWifiNetwork(network: WifiNetwork) {
+        if (network.connected) return
+        if (network.secure && !network.saved) {
+            overlay = Overlay.Input(
+                title = t("Passwort für „${network.ssid}“", "Password for “${network.ssid}”"),
+                initial = "",
+                hint = t("WLAN-Passwort", "Wi-Fi password"),
+                password = true,
+            ) { password -> if (password.isNotBlank()) connectWifi(network, password) }
+        } else {
+            connectWifi(network, null)
+        }
+    }
+
+    private fun connectWifi(network: WifiNetwork, password: String?) {
+        systemStatus = t("Verbinde mit „${network.ssid}“ …", "Connecting to “${network.ssid}” …")
+        lifecycleScope.launch {
+            val started = wifi.connect(network, password)
+            kotlinx.coroutines.delay(5000)
+            refreshWifi()
+            systemStatus = if (wifiState?.ssid == network.ssid) t("Verbunden.", "Connected.")
+            else if (started) t("Noch nicht verbunden – Passwort prüfen.", "Not connected yet – check the password.")
+            else t("Verbindung nicht möglich.", "Couldn't connect.")
+        }
+    }
+
+    private fun openUsersPage() {
+        systemStatus = null
+        screen = Screen.USERS
+        focusKey++
+        lifecycleScope.launch { if (rootAvailable) systemUsers = SystemUsers.list() }
+    }
+
+    private fun toggleAdbNetwork() {
+        if (!rootAvailable) {
+            systemStatus = t("ADB über Netzwerk braucht Root.", "ADB over network needs root.")
+            return
+        }
+        lifecycleScope.launch {
+            val target = !adbNetwork
+            SystemUsers.setAdbOverNetwork(target)
+            adbNetwork = SystemUsers.adbOverNetwork()
+        }
     }
 
     private fun openBluetooth() = openSettingsPage(
@@ -600,6 +771,17 @@ class MainActivity : ComponentActivity() {
 
     private fun onSettingsAction(action: SettingsAction) {
         when (action) {
+            SettingsAction.SYSTEM -> openSystem()
+            SettingsAction.BACKGROUND_FILE -> overlay = Overlay.Picker(
+                title = t("Eigener Hintergrund", "Custom background"),
+                items = listOf(PickItem("", t("Keiner (Glut-Hintergrund)", "None (Glut background)"))) +
+                    CustomBackgrounds.list(this).map {
+                        PickItem(it.name, it.name, if (CustomBackgrounds.isVideo(it)) t("Video", "Video") else t("Bild", "Image"))
+                    },
+                isSelected = { it == prefs.customBackground },
+                onSelect = { name -> prefs.customBackground = name },
+                subtitle = t("Dateien liegen in ${CustomBackgrounds.dir(this).path}", "Files go in ${CustomBackgrounds.dir(this).path}"),
+            )
             SettingsAction.THEME -> overlay = Overlay.Picker(
                 title = t("Farbschema", "Colour theme"),
                 items = ColorTheme.entries.map { PickItem(it.name, it.label) },
