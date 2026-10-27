@@ -134,6 +134,9 @@ class MainActivity : ComponentActivity() {
     private var systemUsers by mutableStateOf<List<SystemUser>?>(null)
     private var adbNetwork by mutableStateOf(false)
     private var systemStatus by mutableStateOf<String?>(null)
+    /** Wohin „Zurück“ von den Systemseiten führt: Startseite (obere Tasten), Einstellungen oder System. */
+    private var systemParent = Screen.SETTINGS
+    private var subParent = Screen.SYSTEM
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -162,8 +165,8 @@ class MainActivity : ComponentActivity() {
                     BackHandler {
                         when {
                             overlay != null -> closeOverlay()
-                            screen == Screen.WIFI || screen == Screen.USERS -> { screen = Screen.SYSTEM; focusKey++ }
-                            screen == Screen.SYSTEM -> { screen = Screen.SETTINGS; focusKey++ }
+                            screen == Screen.WIFI || screen == Screen.USERS -> { screen = subParent; focusKey++ }
+                            screen == Screen.SYSTEM -> { screen = systemParent; focusKey++ }
                             screen != Screen.HOME -> goHome()
                         }
                     }
@@ -216,9 +219,9 @@ class MainActivity : ComponentActivity() {
                 onOpenApps = { screen = Screen.APPS },
                 onOpenMenu = { screen = Screen.SETTINGS },
                 onOpenSearch = { screen = Screen.SEARCH },
-                onOpenWifi = ::openWifi,
-                onOpenProfile = ::openProfiles,
-                onOpenSettings = { startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
+                onOpenWifi = ::openWifiPage,
+                onOpenProfile = ::openUsersPage,
+                onOpenSettings = ::openSystem,
                 onOpenBluetooth = ::openBluetooth,
                 onOpenAmazonHome = ::openAmazonHome,
             )
@@ -613,6 +616,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openSystem() {
         systemStatus = null
+        if (screen != Screen.SYSTEM) systemParent = if (screen == Screen.HOME) Screen.HOME else Screen.SETTINGS
         screen = Screen.SYSTEM
         focusKey++
         lifecycleScope.launch {
@@ -628,6 +632,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openWifiPage() {
         systemStatus = null
+        subParent = if (screen == Screen.SYSTEM) Screen.SYSTEM else Screen.HOME
         screen = Screen.WIFI
         focusKey++
         lifecycleScope.launch { refreshWifi() }
@@ -669,9 +674,13 @@ class MainActivity : ComponentActivity() {
 
     private fun openUsersPage() {
         systemStatus = null
+        subParent = if (screen == Screen.SYSTEM) Screen.SYSTEM else Screen.HOME
         screen = Screen.USERS
         focusKey++
-        lifecycleScope.launch { if (rootAvailable) systemUsers = SystemUsers.list() }
+        lifecycleScope.launch {
+            rootAvailable = RootShell.available()
+            if (rootAvailable) systemUsers = SystemUsers.list()
+        }
     }
 
     private fun toggleAdbNetwork() {
