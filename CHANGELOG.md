@@ -3,6 +3,12 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] – 2026-10-27
+
+### Fixed
+- The Wi-Fi, profile and settings buttons on the home screen now open the new
+  Wi-Fi, user and system pages. Back returns to the home screen.
+
 ## [1.2.0] – 2026-10-27
 
 ### Added
