@@ -36,22 +36,54 @@ class Updater(private val context: Context, private val beta: () -> Boolean = { 
 
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
         status = null
-        runCatching {
-            val json = JSONObject(get(if (beta()) BETA_API else STABLE_API))
-            val body = json.optString("body")
-            val code = Regex("versionCode=(\\d+)").find(body)?.groupValues?.get(1)?.toInt() ?: return@runCatching null
-            val name = Regex("versionName=([\\w.\\-]+)").find(body)?.groupValues?.get(1) ?: code.toString()
-            val assets = json.getJSONArray("assets")
-            val apk = (0 until assets.length()).map { assets.getJSONObject(it) }
-                .firstOrNull { it.getString("name").endsWith(".apk") }
-                ?.getString("browser_download_url") ?: return@runCatching null
-            UpdateInfo(code, name, apk).takeIf { code > BuildConfig.VERSION_CODE }
-        }.onFailure {
-            status = t("Update-Prüfung fehlgeschlagen: keine Verbindung zu GitHub.", "Update check failed: no connection to GitHub.")
-        }.getOrNull().also {
+        // Die GitHub-API erlaubt ohne Anmeldung nur 60 Anfragen pro Stunde und IP-Adresse
+        // (alle Geräte im Haushalt zusammen). Dann weichen wir auf die normale Release-Seite aus.
+        val result = runCatching { fromApi() }.recoverCatching { apiError ->
+            runCatching { fromReleasePage() }.getOrElse { throw apiError }
+        }
+        result.onFailure {
+            status = t("Update-Prüfung fehlgeschlagen: ", "Update check failed: ") + (it.message ?: t("keine Verbindung zu GitHub", "no connection to GitHub"))
+        }
+        result.getOrNull().also {
             available = it
             if (it == null && status == null) status = t("Glut Launcher ist aktuell.", "Glut Launcher is up to date.")
         }
+    }
+
+    private fun fromApi(): UpdateInfo? {
+        val json = JSONObject(get(if (beta()) BETA_API else STABLE_API))
+        val assets = json.getJSONArray("assets")
+        val apk = (0 until assets.length()).map { assets.getJSONObject(it) }
+            .firstOrNull { it.getString("name").endsWith(".apk") }
+            ?.getString("browser_download_url") ?: return null
+        return parse(json.optString("body"), apk)
+    }
+
+    private fun fromReleasePage(): UpdateInfo? {
+        val tag = if (beta()) BETA_TAG else latestTag()
+        val page = get("$WEB/releases/tag/$tag", accept = "text/html")
+        return parse(page, "$WEB/releases/download/$tag/$APK_NAME")
+    }
+
+    /** /releases/latest leitet auf die Seite der neuesten stabilen Version weiter. */
+    private fun latestTag(): String {
+        val connection = URL("$WEB/releases/latest").openConnection() as HttpURLConnection
+        try {
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            val location = connection.getHeaderField("Location") ?: throw IllegalStateException("HTTP ${connection.responseCode}")
+            return location.substringAfterLast("/tag/")
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Der Release-Text trägt „versionCode=…“ und „versionName=…“ (vom Build eingetragen). */
+    private fun parse(text: String, apkUrl: String): UpdateInfo? {
+        val code = Regex("versionCode=(\\d+)").find(text)?.groupValues?.get(1)?.toInt() ?: return null
+        val name = Regex("versionName=([\\w.\\-]+)").find(text)?.groupValues?.get(1) ?: code.toString()
+        return UpdateInfo(code, name, apkUrl).takeIf { code > BuildConfig.VERSION_CODE }
     }
 
     /** Lädt die APK herunter und übergibt sie an den Installer. */
@@ -120,13 +152,15 @@ class Updater(private val context: Context, private val beta: () -> Boolean = { 
         }
     }
 
-    private fun get(url: String): String {
+    private fun get(url: String, accept: String = "application/vnd.github+json"): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 8000
             connection.readTimeout = 8000
-            connection.setRequestProperty("Accept", "application/vnd.github+json")
-            if (connection.responseCode !in 200..299) throw IllegalStateException("HTTP ${connection.responseCode}")
+            connection.setRequestProperty("Accept", accept)
+            val code = connection.responseCode
+            if (code == 403 || code == 429) throw IllegalStateException(t("GitHub-Limit erreicht (HTTP $code), später erneut versuchen", "GitHub rate limit reached (HTTP $code), try again later"))
+            if (code !in 200..299) throw IllegalStateException("HTTP $code")
             return connection.inputStream.bufferedReader().use { it.readText() }
         } finally {
             connection.disconnect()
@@ -135,11 +169,14 @@ class Updater(private val context: Context, private val beta: () -> Boolean = { 
 
     companion object {
         private const val REPO_API = "https://api.github.com/repos/ENjxzlt/Glut-Launcher"
+        private const val WEB = "https://github.com/ENjxzlt/Glut-Launcher"
+        private const val BETA_TAG = "neuester-build"
+        private const val APK_NAME = "glut-launcher.apk"
 
         /** Neueste stabile Version (GitHub „latest“ überspringt Vorabversionen). */
         private const val STABLE_API = "$REPO_API/releases/latest"
 
         /** Automatischer Build jeder Änderung, als Vorabversion veröffentlicht. */
-        private const val BETA_API = "$REPO_API/releases/tags/neuester-build"
+        private const val BETA_API = "$REPO_API/releases/tags/$BETA_TAG"
     }
 }
