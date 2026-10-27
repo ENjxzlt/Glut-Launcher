@@ -40,7 +40,11 @@ import de.glut.launcher.data.HomeAssistant
 import de.glut.launcher.data.LauncherSnapshot
 import de.glut.launcher.data.LoginStep
 import de.glut.launcher.data.MediaWatcher
+import de.glut.launcher.data.BluetoothControl
+import de.glut.launcher.data.BtDevice
+import de.glut.launcher.data.DeviceInfo
 import de.glut.launcher.data.Prefs
+import de.glut.launcher.data.SystemControl
 import de.glut.launcher.data.RootShell
 import de.glut.launcher.data.SystemUser
 import de.glut.launcher.data.SystemUsers
@@ -64,7 +68,9 @@ import de.glut.launcher.ui.QuickActionsDialog
 import de.glut.launcher.ui.SearchScreen
 import de.glut.launcher.ui.SettingsAction
 import de.glut.launcher.ui.SettingsScreen
-import de.glut.launcher.ui.SystemScreen
+import de.glut.launcher.ui.BluetoothScreen
+import de.glut.launcher.ui.SettingsPage
+import de.glut.launcher.ui.SystemState
 import de.glut.launcher.ui.UsersScreen
 import de.glut.launcher.ui.WifiScreen
 import de.glut.launcher.ui.TextInputDialog
@@ -76,7 +82,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-private enum class Screen { HOME, APPS, SEARCH, SETTINGS, SYSTEM, WIFI, USERS }
+private enum class Screen { HOME, APPS, SEARCH, SETTINGS, WIFI, USERS, BLUETOOTH }
 
 /** Fenster über dem aktuellen Bildschirm. [back] ist das Fenster, zu dem „Zurück“ führt. */
 private sealed interface Overlay {
@@ -134,9 +140,18 @@ class MainActivity : ComponentActivity() {
     private var systemUsers by mutableStateOf<List<SystemUser>?>(null)
     private var adbNetwork by mutableStateOf(false)
     private var systemStatus by mutableStateOf<String?>(null)
-    /** Wohin „Zurück“ von den Systemseiten führt: Startseite (obere Tasten), Einstellungen oder System. */
-    private var systemParent = Screen.SETTINGS
-    private var subParent = Screen.SYSTEM
+    private var settingsPage by mutableStateOf(SettingsPage.ROOT)
+    private var rootChecked = false
+    /** Seiten wie WLAN öffnen sich auch von den oberen Tasten; „Zurück“ führt dann zur Startseite. */
+    private var subReturnsHome = false
+    private lateinit var bluetooth: BluetoothControl
+    private var btEnabled by mutableStateOf(false)
+    private var btScanning by mutableStateOf(false)
+    private var btDevices by mutableStateOf<List<BtDevice>>(emptyList())
+    private var adbDebugging by mutableStateOf(false)
+    private var soundEffects by mutableStateOf(true)
+    private var volumePercent by mutableStateOf(0)
+    private var deviceInfo by mutableStateOf<List<Pair<String, String>>>(emptyList())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -146,6 +161,11 @@ class MainActivity : ComponentActivity() {
         repository = AppRepository(this)
         homeAssistant = HomeAssistant(prefs)
         wifi = WifiControl(this)
+        bluetooth = BluetoothControl(this) {
+            btEnabled = bluetooth.enabled
+            btScanning = bluetooth.scanning
+            btDevices = bluetooth.devices()
+        }
         media = MediaWatcher(this)
         updater = Updater(this) { prefs.betaUpdates }
 
@@ -165,8 +185,8 @@ class MainActivity : ComponentActivity() {
                     BackHandler {
                         when {
                             overlay != null -> closeOverlay()
-                            screen == Screen.WIFI || screen == Screen.USERS -> { screen = subParent; focusKey++ }
-                            screen == Screen.SYSTEM -> { screen = systemParent; focusKey++ }
+                            screen == Screen.WIFI || screen == Screen.BLUETOOTH || screen == Screen.USERS -> leaveSubPage()
+                            screen == Screen.SETTINGS && settingsPage.parent != null -> navigateSettings(settingsPage.parent!!)
                             screen != Screen.HOME -> goHome()
                         }
                     }
@@ -217,13 +237,13 @@ class MainActivity : ComponentActivity() {
                 onFolderMenu = { overlay = Overlay.FolderMenu(it.id) },
                 onSmartHome = ::activateEntity,
                 onOpenApps = { screen = Screen.APPS },
-                onOpenMenu = { screen = Screen.SETTINGS },
+                onOpenMenu = { openSettings() },
                 onOpenSearch = { screen = Screen.SEARCH },
                 // Die Systemseiten brauchen Root und sind nur sinnvoll, wenn Glut der Standard-Launcher ist.
                 onOpenWifi = { if (onlyLauncher) openWifiPage() else openWifi() },
                 onOpenProfile = { if (onlyLauncher) openUsersPage() else openProfiles() },
-                onOpenSettings = { if (onlyLauncher) openSystem() else startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
-                onOpenBluetooth = ::openBluetooth,
+                onOpenSettings = { if (onlyLauncher) openSettings(SettingsPage.SYSTEM) else startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
+                onOpenBluetooth = { if (onlyLauncher) openBluetoothPage() else openBluetooth() },
                 onOpenAmazonHome = ::openAmazonHome,
             )
             Screen.APPS -> AppsScreen(
@@ -235,25 +255,6 @@ class MainActivity : ComponentActivity() {
                 onOptions = { overlay = Overlay.AppMenu(it) },
                 onOpenFolder = { overlay = Overlay.FolderOpen(it.id) },
                 onFolderMenu = { overlay = Overlay.FolderMenu(it.id) },
-            )
-            Screen.SYSTEM -> SystemScreen(
-                focusKey = focusKey,
-                rootAvailable = rootAvailable,
-                rootMode = prefs.rootMode,
-                wifiSummary = wifiState?.ssid ?: if (wifiState?.enabled == false) t("Aus", "Off") else t("Nicht verbunden", "Not connected"),
-                userSummary = systemUsers?.firstOrNull { it.current }?.name ?: "–",
-                adbNetwork = adbNetwork,
-                status = systemStatus,
-                onWifi = ::openWifiPage,
-                onUsers = ::openUsersPage,
-                onToggleRootMode = {
-                    prefs.rootMode = !prefs.rootMode
-                    if (prefs.rootMode && !rootAvailable) systemStatus = t("Kein Root gefunden – der Modus greift erst mit Root.", "No root found – the mode only works with root.")
-                },
-                onToggleAdb = ::toggleAdbNetwork,
-                onSleep = ::sleepNow,
-                onRestart = ::restart,
-                onFireSettings = { startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
             )
             Screen.WIFI -> WifiScreen(
                 focusKey = focusKey,
@@ -294,6 +295,20 @@ class MainActivity : ComponentActivity() {
                     systemStatus = if (prefs.rootMode) t("Root-Modus an.", "Root mode on.") else t("Root-Modus aus.", "Root mode off.")
                 },
             )
+            Screen.BLUETOOTH -> BluetoothScreen(
+                focusKey = focusKey,
+                available = bluetooth.available,
+                enabled = btEnabled,
+                scanning = btScanning,
+                devices = btDevices,
+                status = systemStatus,
+                onToggle = {
+                    bluetooth.setEnabled(!bluetooth.enabled)
+                    lifecycleScope.launch { kotlinx.coroutines.delay(1500); btEnabled = bluetooth.enabled; btDevices = bluetooth.devices() }
+                },
+                onScan = { lifecycleScope.launch { wifi.ensureAccess(); bluetooth.startScan() } },
+                onDevice = ::onBluetoothDevice,
+            )
             Screen.SEARCH -> SearchScreen(
                 apps = apps,
                 prefs = prefs,
@@ -303,6 +318,7 @@ class MainActivity : ComponentActivity() {
                 onOptions = { overlay = Overlay.AppMenu(it) },
             )
             Screen.SETTINGS -> SettingsScreen(
+                page = settingsPage,
                 prefs = prefs,
                 focusKey = focusKey,
                 serviceEnabled = serviceEnabled,
@@ -311,8 +327,22 @@ class MainActivity : ComponentActivity() {
                 mediaAccess = media.hasAccess,
                 haStatus = haStatus,
                 updater = updater,
+                system = SystemState(
+                    rootAvailable = rootAvailable,
+                    rootMode = prefs.rootMode,
+                    wifiSummary = wifiState?.ssid ?: if (wifiState?.enabled == false) t("WLAN aus", "Wi-Fi off") else t("Nicht verbunden", "Not connected"),
+                    bluetoothSummary = if (!btEnabled) t("Aus", "Off") else t("${btDevices.count { it.bonded }} gekoppelt", "${btDevices.count { it.bonded }} paired"),
+                    userSummary = systemUsers?.firstOrNull { it.current }?.name ?: "–",
+                    adbNetwork = adbNetwork,
+                    adbDebugging = adbDebugging,
+                    volumePercent = volumePercent,
+                    soundEffects = soundEffects,
+                    info = deviceInfo,
+                    status = systemStatus,
+                ),
                 appLabel = { pkg -> if (pkg.isBlank()) t("Startseite", "Home") else apps.firstOrNull { it.packageName == pkg }?.label ?: pkg },
                 entityLabel = { id -> if (id.isBlank()) t("Nichts", "Nothing") else haEntities.firstOrNull { it.id == id }?.name ?: id },
+                onNavigate = ::navigateSettings,
                 onAction = ::onSettingsAction,
             )
         }
@@ -327,7 +357,7 @@ class MainActivity : ComponentActivity() {
                 onClose = ::closeOverlay,
                 onMoveToFolder = { overlay = Overlay.MoveToFolder(current.app, current.back) },
                 onAppInfo = {
-                    startSafely(
+                    if (onlyLauncher) manageApp(current.app) else startSafely(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                             .setData(Uri.fromParts("package", current.app.packageName, null)),
                     )
@@ -392,8 +422,8 @@ class MainActivity : ComponentActivity() {
                     closeOverlay()
                     sleepNow()
                 },
-                onSettings = { overlay = null; screen = Screen.SETTINGS; focusKey++ },
-                onFireSettings = { closeOverlay(); startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
+                onSettings = { overlay = null; openSettings() },
+                onFireSettings = { closeOverlay(); if (onlyLauncher) openSettings(SettingsPage.SYSTEM) else startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
                 onAmazonHome = { closeOverlay(); openAmazonHome() },
                 onRestart = { closeOverlay(); restart() },
                 onClose = ::closeOverlay,
@@ -452,6 +482,11 @@ class MainActivity : ComponentActivity() {
         serviceEnabled = HomeRedirectService.isEnabled(this)
         keyFilterSupported = HomeRedirectService.canFilterKeys()
         onlyLauncher = isDefaultHome()
+        // Ohne Amazons Einstellungen läuft alles Systemnahe über Root: einmal früh prüfen.
+        if (onlyLauncher && !rootChecked) {
+            rootChecked = true
+            lifecycleScope.launch { rootAvailable = RootShell.available() }
+        }
         if (appsDirty) refreshApps()
         media.start()
         endKinoMode()
@@ -499,6 +534,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(packageReceiver) }
+        bluetooth.stop()
         media.stop()
         super.onDestroy()
     }
@@ -615,11 +651,30 @@ class MainActivity : ComponentActivity() {
 
     // --- System (Root) ---
 
-    private fun openSystem() {
+    private val systemPages = setOf(
+        SettingsPage.SYSTEM, SettingsPage.NETWORK, SettingsPage.SOUND, SettingsPage.APPS,
+        SettingsPage.ENERGY, SettingsPage.INFO, SettingsPage.DEVELOPER,
+    )
+
+    private fun openSettings(page: SettingsPage = SettingsPage.ROOT) {
+        screen = Screen.SETTINGS
+        navigateSettings(page)
+    }
+
+    private fun navigateSettings(page: SettingsPage) {
+        settingsPage = page
         systemStatus = null
-        if (screen != Screen.SYSTEM) systemParent = if (screen == Screen.HOME) Screen.HOME else Screen.SETTINGS
-        screen = Screen.SYSTEM
         focusKey++
+        if (onlyLauncher && page in systemPages) refreshSystem()
+    }
+
+    /** Liest Root, Benutzer, Lautstärke usw. neu ein, wenn eine Systemseite aufgeht. */
+    private fun refreshSystem() {
+        volumePercent = SystemControl.volumePercent(this)
+        adbDebugging = SystemControl.adbDebugging(this)
+        soundEffects = SystemControl.soundEffects(this)
+        btEnabled = bluetooth.enabled
+        btDevices = bluetooth.devices()
         lifecycleScope.launch {
             rootAvailable = RootShell.available()
             if (rootAvailable) {
@@ -628,12 +683,25 @@ class MainActivity : ComponentActivity() {
             }
             wifi.ensureAccess()
             wifiState = wifi.state()
+            deviceInfo = DeviceInfo.collect(this@MainActivity, wifiState?.ip, updater.currentVersion)
+        }
+    }
+
+    private fun leaveSubPage() {
+        bluetooth.stop()
+        if (subReturnsHome) {
+            goHome()
+        } else {
+            screen = Screen.SETTINGS
+            focusKey++
+            if (onlyLauncher) refreshSystem()
         }
     }
 
     private fun openWifiPage() {
         systemStatus = null
-        subParent = if (screen == Screen.SYSTEM) Screen.SYSTEM else Screen.HOME
+        subReturnsHome = screen == Screen.HOME
+        settingsPage = SettingsPage.NETWORK
         screen = Screen.WIFI
         focusKey++
         lifecycleScope.launch { refreshWifi() }
@@ -675,13 +743,68 @@ class MainActivity : ComponentActivity() {
 
     private fun openUsersPage() {
         systemStatus = null
-        subParent = if (screen == Screen.SYSTEM) Screen.SYSTEM else Screen.HOME
+        subReturnsHome = screen == Screen.HOME
+        settingsPage = SettingsPage.SYSTEM
         screen = Screen.USERS
         focusKey++
         lifecycleScope.launch {
             rootAvailable = RootShell.available()
             if (rootAvailable) systemUsers = SystemUsers.list()
         }
+    }
+
+    private fun openBluetoothPage() {
+        systemStatus = null
+        subReturnsHome = screen == Screen.HOME
+        settingsPage = SettingsPage.NETWORK
+        screen = Screen.BLUETOOTH
+        focusKey++
+        btEnabled = bluetooth.enabled
+        btDevices = bluetooth.devices()
+        lifecycleScope.launch { wifi.ensureAccess(); bluetooth.startScan() }
+    }
+
+    private fun onBluetoothDevice(device: BtDevice) {
+        systemStatus = if (device.bonded) {
+            if (bluetooth.unpair(device.address)) t("„${device.name}“ entkoppelt.", "Unpaired “${device.name}”.")
+            else t("Entkoppeln nicht möglich.", "Couldn't unpair.")
+        } else {
+            if (bluetooth.pair(device.address)) t("Koppeln mit „${device.name}“ … am Gerät bestätigen.", "Pairing with “${device.name}” … confirm on the device.")
+            else t("Koppeln nicht möglich.", "Couldn't pair.")
+        }
+    }
+
+    // --- Apps verwalten (ersetzt die App-Info von Amazons Einstellungen) ---
+
+    private fun manageApp(app: AppEntry) {
+        if (!rootAvailable) {
+            toast(t("Apps verwalten braucht Root.", "Managing apps needs root."))
+            return
+        }
+        overlay = Overlay.Picker(
+            title = app.label,
+            items = listOf(
+                PickItem("stop", t("Beenden", "Force stop")),
+                PickItem("cache", t("Cache löschen", "Clear cache")),
+                PickItem("data", t("Daten löschen", "Clear data"), t("Setzt die App zurück", "Resets the app")),
+                PickItem("uninstall", t("Deinstallieren", "Uninstall")),
+            ),
+            isSelected = { false },
+            onSelect = { action ->
+                overlay = null
+                val pkg = app.packageName
+                lifecycleScope.launch {
+                    val ok = when (action) {
+                        "stop" -> SystemControl.forceStop(pkg)
+                        "cache" -> SystemControl.clearCache(pkg)
+                        "data" -> SystemControl.clearData(pkg)
+                        else -> SystemControl.uninstall(pkg)
+                    }
+                    systemStatus = if (ok) t("„${app.label}“: erledigt.", "“${app.label}”: done.") else t("„${app.label}“: fehlgeschlagen.", "“${app.label}”: failed.")
+                    toast(systemStatus.orEmpty())
+                }
+            },
+        )
     }
 
     private fun toggleAdbNetwork() {
@@ -781,7 +904,40 @@ class MainActivity : ComponentActivity() {
 
     private fun onSettingsAction(action: SettingsAction) {
         when (action) {
-            SettingsAction.SYSTEM -> openSystem()
+            SettingsAction.OPEN_WIFI -> openWifiPage()
+            SettingsAction.OPEN_BLUETOOTH -> openBluetoothPage()
+            SettingsAction.OPEN_USERS -> openUsersPage()
+            SettingsAction.SLEEP -> sleepNow()
+            SettingsAction.TOGGLE_ROOT_MODE -> {
+                prefs.rootMode = !prefs.rootMode
+                if (prefs.rootMode && !rootAvailable) systemStatus = t("Kein Root gefunden – der Modus greift erst mit Root.", "No root found – the mode only works with root.")
+            }
+            SettingsAction.TOGGLE_ADB_NET -> toggleAdbNetwork()
+            SettingsAction.TOGGLE_ADB_DEBUG -> lifecycleScope.launch {
+                if (!rootAvailable) {
+                    systemStatus = t("ADB-Debugging ändern braucht Root.", "Changing ADB debugging needs root.")
+                } else {
+                    SystemControl.setAdbDebugging(!adbDebugging)
+                    adbDebugging = SystemControl.adbDebugging(this@MainActivity)
+                }
+            }
+            SettingsAction.TOGGLE_SOUND_FX -> lifecycleScope.launch {
+                if (!rootAvailable) {
+                    systemStatus = t("Systemtöne ändern braucht Root.", "Changing system sounds needs root.")
+                } else {
+                    SystemControl.setSoundEffects(!soundEffects)
+                    soundEffects = SystemControl.soundEffects(this@MainActivity)
+                }
+            }
+            SettingsAction.CYCLE_VOLUME -> volumePercent = SystemControl.cycleVolume(this)
+            SettingsAction.CHECK_ROOT -> lifecycleScope.launch {
+                rootAvailable = RootShell.available()
+                systemStatus = if (rootAvailable) t("Root-Zugriff funktioniert.", "Root access works.")
+                else t("Kein Root-Zugriff. Hat dein Root-Manager Glut freigegeben?", "No root access. Did your root manager grant Glut?")
+            }
+            SettingsAction.PICK_MANAGED_APP -> overlay = appPicker(t("App verwalten", "Manage app"), allowNone = false, { "" }) { pkg ->
+                apps.firstOrNull { it.packageName == pkg }?.let(::manageApp)
+            }
             SettingsAction.BACKGROUND_FILE -> overlay = Overlay.Picker(
                 title = t("Eigener Hintergrund", "Custom background"),
                 items = listOf(PickItem("", t("Keiner (Glut-Hintergrund)", "None (Glut background)"))) +
@@ -866,7 +1022,11 @@ class MainActivity : ComponentActivity() {
                     lifecycleScope.launch { updater.install(info) }
                 }
             }
-            SettingsAction.UNKNOWN_SOURCES -> {
+            SettingsAction.UNKNOWN_SOURCES -> if (onlyLauncher && rootAvailable) {
+                lifecycleScope.launch {
+                    systemStatus = if (SystemControl.allowInstalls(packageName)) t("Installation erlaubt.", "Installing allowed.") else t("Fehlgeschlagen.", "Failed.")
+                }
+            } else {
                 val ok = startSafely(
                     Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")),
                     quiet = true,

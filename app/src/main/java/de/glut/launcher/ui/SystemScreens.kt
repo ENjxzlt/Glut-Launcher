@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.glut.launcher.data.BtDevice
 import de.glut.launcher.data.SystemUser
 import de.glut.launcher.data.WifiNetwork
 import de.glut.launcher.data.WifiState
@@ -47,96 +48,6 @@ private fun rememberFirstFocus(focusKey: Int): FocusRequester {
 private fun SectionHeader(title: String) {
     Spacer(Modifier.height(18.dp))
     Txt(title, size = 13.sp, color = LocalAccent.current, weight = FontWeight.SemiBold, modifier = Modifier.padding(start = 12.dp, bottom = 4.dp))
-}
-
-@Composable
-private fun RootBadge(active: Boolean) {
-    val color = if (active) Theme.green else Theme.fg4
-    Row(
-        modifier = Modifier
-            .background(Theme.bg1, RoundedCornerShape(50))
-            .padding(horizontal = 12.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        Box(Modifier.size(7.dp).background(color, CircleShape))
-        Txt(if (active) t("Root aktiv", "Root active") else t("Kein Root", "No root"), size = 10.sp, color = color)
-    }
-}
-
-/** Einstiegsseite: Netzwerk, Benutzer und Energie an einem Ort. */
-@Composable
-fun SystemScreen(
-    focusKey: Int,
-    rootAvailable: Boolean,
-    rootMode: Boolean,
-    wifiSummary: String,
-    userSummary: String,
-    adbNetwork: Boolean,
-    status: String?,
-    onWifi: () -> Unit,
-    onUsers: () -> Unit,
-    onToggleRootMode: () -> Unit,
-    onToggleAdb: () -> Unit,
-    onSleep: () -> Unit,
-    onRestart: () -> Unit,
-    onFireSettings: () -> Unit,
-) {
-    val first = rememberFirstFocus(focusKey)
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Column(
-            modifier = Modifier
-                .width(640.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(top = 28.dp, bottom = 60.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Txt(t("System", "System"), size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
-                    Txt(t("Einstellungen › System", "Settings › System"), size = 11.sp, color = Theme.fg4)
-                }
-                RootBadge(rootAvailable)
-            }
-
-            SectionHeader(t("Netzwerk", "Network"))
-            MenuRow("WLAN", onWifi, Modifier.focusRequester(first), value = wifiSummary)
-            MenuRow(
-                t("ADB über Netzwerk", "ADB over network"),
-                onToggleAdb,
-                value = if (adbNetwork) t("An", "On") else t("Aus", "Off"),
-                subtitle = if (rootAvailable) t("Port 5555, nur im lokalen Netz", "Port 5555, local network only") else t("Braucht Root", "Needs root"),
-            )
-
-            SectionHeader(t("Benutzer", "Users"))
-            MenuRow(t("Benutzer wählen", "Choose user"), onUsers, value = userSummary)
-            MenuRow(
-                t("Root-Modus", "Root mode"),
-                onToggleRootMode,
-                value = if (rootMode) t("An", "On") else t("Aus", "Off"),
-                subtitle = t(
-                    "Schlafen und Neustart laufen direkt, ohne Amazons Menüs",
-                    "Sleep and restart run directly, without Amazon's menus",
-                ),
-            )
-
-            SectionHeader(t("Energie", "Power"))
-            MenuRow(t("Schlafen", "Sleep"), onSleep)
-            MenuRow(
-                t("Neu starten", "Restart"),
-                onRestart,
-                subtitle = if (rootMode) t("Sofort, ohne Rückfrage", "Immediately, no confirmation") else t("Öffnet das Einschaltmenü oder „Mein Fire TV“", "Opens the power menu or “My Fire TV”"),
-            )
-            MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), onFireSettings)
-
-            if (status != null) {
-                Spacer(Modifier.height(10.dp))
-                Txt(status, size = 10.sp, color = Theme.fg3, maxLines = 3, modifier = Modifier.padding(start = 12.dp))
-            }
-            Spacer(Modifier.height(16.dp))
-            KeyHint(t("ZURÜCK", "BACK"), t("Einstellungen", "Settings"))
-        }
-    }
 }
 
 private fun signalLabel(level: Int) = when {
@@ -253,7 +164,7 @@ fun WifiScreen(
                 }
                 Spacer(Modifier.height(4.dp))
                 KeyHint("OK", t("Verbinden", "Connect"))
-                KeyHint(t("ZURÜCK", "BACK"), t("System", "System"))
+                KeyHint(t("ZURÜCK", "BACK"), t("Netzwerk", "Network"))
             }
         }
     }
@@ -361,6 +272,60 @@ fun UsersScreen(
         Row(Modifier.padding(bottom = 30.dp), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             KeyHint("OK", t("Auswählen", "Select"))
             KeyHint(t("ZURÜCK", "BACK"), t("System", "System"))
+        }
+    }
+}
+
+/** Bluetooth: ein-/ausschalten, suchen, koppeln und entkoppeln. */
+@Composable
+fun BluetoothScreen(
+    focusKey: Int,
+    available: Boolean,
+    enabled: Boolean,
+    scanning: Boolean,
+    devices: List<BtDevice>,
+    status: String?,
+    onToggle: () -> Unit,
+    onScan: () -> Unit,
+    onDevice: (BtDevice) -> Unit,
+) {
+    val first = rememberFirstFocus(focusKey)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier
+                .width(640.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(top = 28.dp, bottom = 60.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Txt("Bluetooth", size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
+            Txt(t("Einstellungen › System › Netzwerk › Bluetooth", "Settings › System › Network › Bluetooth"), size = 11.sp, color = Theme.fg4)
+            Spacer(Modifier.height(14.dp))
+            if (!available) {
+                Txt(t("Dieses Gerät hat kein Bluetooth.", "This device has no Bluetooth."), size = 12.sp, color = Theme.fg3)
+            } else {
+                MenuRow("Bluetooth", onToggle, Modifier.focusRequester(first), value = if (enabled) t("An", "On") else t("Aus", "Off"))
+                if (enabled) {
+                    MenuRow(
+                        if (scanning) t("Suche läuft …", "Scanning …") else t("Geräte suchen", "Search for devices"),
+                        onScan,
+                        subtitle = t("Gerät in den Kopplungsmodus versetzen", "Put the device in pairing mode"),
+                    )
+                    val paired = devices.filter { it.bonded }
+                    val nearby = devices.filter { !it.bonded }
+                    if (paired.isNotEmpty()) SectionHeader(t("Gekoppelt", "Paired"))
+                    for (device in paired) {
+                        MenuRow(device.name, { onDevice(device) }, subtitle = t("OK entkoppelt das Gerät", "OK unpairs the device"), checked = true)
+                    }
+                    if (nearby.isNotEmpty()) SectionHeader(t("In der Nähe", "Nearby"))
+                    for (device in nearby) {
+                        MenuRow(device.name, { onDevice(device) }, subtitle = t("OK koppelt das Gerät", "OK pairs the device"))
+                    }
+                }
+            }
+            if (status != null) Txt(status, size = 10.sp, color = Theme.fg3, maxLines = 3, modifier = Modifier.padding(start = 12.dp, top = 8.dp))
+            Spacer(Modifier.height(16.dp))
+            KeyHint(t("ZURÜCK", "BACK"), t("Netzwerk", "Network"))
         }
     }
 }

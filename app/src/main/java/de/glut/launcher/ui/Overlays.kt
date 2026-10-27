@@ -346,7 +346,7 @@ fun QuickActionsDialog(
         MenuRow(t("Schlafen", "Sleep"), onSleep, Modifier.focusRequester(first))
         MenuRow(t("Neu starten", "Restart"), onRestart)
         MenuRow(t("Launcher-Einstellungen", "Launcher settings"), onSettings)
-        MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), onFireSettings)
+        MenuRow(if (onlyLauncher) t("Systemeinstellungen", "System settings") else t("Fire-TV-Einstellungen", "Fire TV settings"), onFireSettings)
         if (!onlyLauncher) MenuRow(t("Amazon-Startseite öffnen", "Open Amazon home"), onAmazonHome, subtitle = t("10 Minuten ohne Umleitung", "10 minutes without redirect"))
         MenuRow(t("Abbrechen", "Cancel"), onClose)
     }

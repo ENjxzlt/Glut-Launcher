@@ -48,7 +48,7 @@ class Prefs(context: Context) {
     var fastHome by boolPref("fastHome", true)
     var instantCover by boolPref("instantCover", true)
     /** Neustart und Schlafen direkt per Root statt über Amazons Menüs. */
-    var rootMode by boolPref("rootMode", false)
+    var rootMode by boolPref("rootMode", true)
     var favorites by listPref("favorites")
     var hidden by pref("hidden", emptySet<String>(), { s -> s.split('\n').filter { it.isNotBlank() }.toSet() }, { it.joinToString("\n") })
     var foldersEnabled by boolPref("foldersEnabled", true)
