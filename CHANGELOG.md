@@ -3,6 +3,14 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] – 2026-10-28
+
+### Changed
+- Screensaver stock photos are now nature only: featured pictures from
+  Wikimedia Commons (forests, mountains, beaches, waterfalls, lakes, sunsets,
+  flowers), landscape format only. The licence credit (title, author, licence)
+  is shown in the corner. Replaces picsum.photos.
+
 ## [1.4.0] – 2026-10-27
 
 ### Added
