@@ -167,7 +167,7 @@ object Theme {
 
 enum class ScreensaverSource(private val de: String, private val en: String) {
     FILES("Eigene Dateien", "Own files"),
-    STOCK("Stock-Bilder", "Stock photos");
+    STOCK("Naturbilder", "Nature photos");
 
     val label: String get() = t(de, en)
 }

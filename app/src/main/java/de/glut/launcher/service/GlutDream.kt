@@ -22,6 +22,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import de.glut.launcher.data.Prefs
 import de.glut.launcher.data.ScreensaverMedia
+import de.glut.launcher.data.StockImage
 import de.glut.launcher.ui.CustomBackgrounds
 import de.glut.launcher.ui.ScreensaverSource
 import de.glut.launcher.ui.cover
@@ -52,7 +53,7 @@ class GlutDream : DreamService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var job: Job? = null
     private var clockJob: Job? = null
-    private var pendingStock: Deferred<File?>? = null
+    private var pendingStock: Deferred<StockImage?>? = null
     private var player: MediaPlayer? = null
     private lateinit var prefs: Prefs
     private lateinit var stage: FrameLayout
@@ -60,6 +61,7 @@ class GlutDream : DreamService() {
     private lateinit var imageB: ImageView
     private lateinit var video: TextureView
     private lateinit var clock: TextView
+    private lateinit var credit: TextView
     private var showingA = true
 
     override fun onAttachedToWindow() {
@@ -87,10 +89,25 @@ class GlutDream : DreamService() {
             gravity = Gravity.END
             visibility = if (prefs.screensaverClock) View.VISIBLE else View.GONE
         }
+        credit = TextView(this).apply {
+            setTextColor(Color.argb(190, 255, 255, 255))
+            textSize = 11f
+            setShadowLayer(8f, 0f, 1f, Color.BLACK)
+            maxLines = 2
+            val pad = (8 * resources.displayMetrics.density).toInt()
+            setPadding(pad * 2, pad, pad * 2, pad)
+            setBackgroundColor(Color.argb(110, 0, 0, 0))
+            visibility = View.GONE
+        }
         val margin = (48 * resources.displayMetrics.density).toInt()
         stage.addView(imageA, FrameLayout.LayoutParams(match, match))
         stage.addView(imageB, FrameLayout.LayoutParams(match, match))
         stage.addView(video, FrameLayout.LayoutParams(match, match))
+        stage.addView(
+            credit,
+            FrameLayout.LayoutParams((resources.displayMetrics.widthPixels * 0.45f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START)
+                .apply { setMargins(margin, margin, margin, margin / 2) },
+        )
         stage.addView(
             clock,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.END)
@@ -135,6 +152,7 @@ class GlutDream : DreamService() {
         var index = 0
         while (scope.isActive) {
             val interval = prefs.screensaverInterval.coerceIn(5, 300) * 1000L
+            var source: String? = null
             val file = when (prefs.screensaverSource) {
                 ScreensaverSource.FILES -> {
                     if (index >= playlist.size) {
@@ -143,7 +161,10 @@ class GlutDream : DreamService() {
                     }
                     playlist.getOrNull(index++)
                 }
-                ScreensaverSource.STOCK -> (pendingStock?.await() ?: ScreensaverMedia.nextStock(this)).also { pendingStock = null }
+                ScreensaverSource.STOCK -> (pendingStock?.await() ?: ScreensaverMedia.nextStock(this)).also {
+                    pendingStock = null
+                    source = it?.credit
+                }?.file
             }
             if (file == null) {
                 // Nichts zu zeigen (Ordner leer, offline ohne Zwischenspeicher): nur die Uhr.
@@ -154,13 +175,13 @@ class GlutDream : DreamService() {
                 playVideo(file)
             } else {
                 if (prefs.screensaverSource == ScreensaverSource.STOCK) pendingStock = scope.async { ScreensaverMedia.nextStock(this@GlutDream) }
-                showImage(file, interval)
+                showImage(file, interval, source)
                 delay(interval)
             }
         }
     }
 
-    private suspend fun showImage(file: File, interval: Long) {
+    private suspend fun showImage(file: File, interval: Long, source: String?) {
         val bitmap = withContext(Dispatchers.IO) {
             runCatching {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -174,11 +195,14 @@ class GlutDream : DreamService() {
         val outgoing = if (showingA) imageA else imageB
         showingA = !showingA
         hideVideo()
+        credit.text = source.orEmpty()
+        credit.visibility = if (source.isNullOrBlank()) View.GONE else View.VISIBLE
         incoming.setImageBitmap(bitmap)
         incoming.alpha = 0f
         incoming.scaleX = 1f
         incoming.scaleY = 1f
         incoming.bringToFront()
+        credit.bringToFront()
         clock.bringToFront()
         incoming.animate().alpha(1f).setDuration(FADE_MS).withEndAction {
             outgoing.alpha = 0f
@@ -193,6 +217,7 @@ class GlutDream : DreamService() {
 
     /** Spielt ein Video bis zum Ende (stumm). Bei Fehlern geht es mit dem nächsten Eintrag weiter. */
     private suspend fun playVideo(file: File) {
+        credit.visibility = View.GONE
         video.visibility = View.VISIBLE
         video.alpha = 0f
         video.bringToFront()

@@ -289,7 +289,7 @@ fun SettingsScreen(
                         { prefs.screensaverSource = prefs.screensaverSource.next(ScreensaverSource.entries.toTypedArray()) },
                         value = prefs.screensaverSource.label,
                         subtitle = if (prefs.screensaverSource == ScreensaverSource.STOCK) {
-                            t("Zufällige Fotos von picsum.photos (Unsplash-Lizenz), braucht Internet", "Random photos from picsum.photos (Unsplash licence), needs internet")
+                            t("Naturfotos von Wikimedia Commons (ausgewählte Bilder, mit Quellenangabe), braucht Internet", "Nature photos from Wikimedia Commons (featured pictures, with credit), needs internet")
                         } else {
                             t("${system.screensaverFiles} Dateien in ${system.screensaverFolder}", "${system.screensaverFiles} files in ${system.screensaverFolder}")
                         },
