@@ -3,6 +3,24 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] – 2026-10-27
+
+### Added
+- Settings are now a main menu with sub-menus (Appearance, Home & apps,
+  On wake-up, Smart home, Updates & info, System).
+- When Glut is the default launcher, the *System* menu replaces Amazon's
+  settings: Network (Wi-Fi, Bluetooth, ADB over network), Users, Sound,
+  Manage apps (stop, clear cache/data, uninstall), Power & root, Device info and
+  Developer. Most of it needs root (`su`).
+- Bluetooth: switch on/off, search, pair and unpair.
+
+### Changed
+- System pages and root mode only appear when Glut is the default launcher.
+- *Root mode* is on by default, so restart and sleep run directly.
+- The top buttons on the home screen open the new pages in that mode.
+
+> Not tested on a device before release.
+
 ## [1.2.1] – 2026-10-27
 
 ### Fixed
