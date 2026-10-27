@@ -44,6 +44,7 @@ fun SettingsScreen(
     focusKey: Int,
     serviceEnabled: Boolean,
     keyFilterSupported: Boolean,
+    onlyLauncher: Boolean,
     mediaAccess: Boolean,
     haStatus: String?,
     updater: Updater,
@@ -147,6 +148,14 @@ fun SettingsScreen(
             }
 
             Header("System")
+            if (onlyLauncher) {
+                MenuRow(
+                    t("Einziger Launcher", "Only launcher"),
+                    {},
+                    value = t("Aktiv", "Active"),
+                    subtitle = t("Glut ist der Standard-Launcher. Menü-Taste (☰) auf der Startseite öffnet das Schnellmenü", "Glut is the default launcher. The Menu button (☰) on the home screen opens the quick menu"),
+                )
+            } else {
             MenuRow(
                 t("Home-Taste umleiten", "Redirect Home button"),
                 { prefs.redirectHome = !prefs.redirectHome },
@@ -173,6 +182,7 @@ fun SettingsScreen(
                     value = t("Nicht verfügbar", "Not available"),
                     subtitle = t("Fire OS gibt die Home-Taste auf diesem Gerät nicht an Apps weiter", "Fire OS does not pass the Home button to apps on this device"),
                 )
+            }
             }
             MenuRow(
                 t("Nach Updates suchen", "Check for updates"),
@@ -204,7 +214,7 @@ fun SettingsScreen(
                 { onAction(SettingsAction.REBOOT) },
                 subtitle = t("Öffnet das Einschaltmenü oder „Mein Fire TV“", "Opens the power menu or “My Fire TV”"),
             )
-            MenuRow(
+            if (!onlyLauncher) MenuRow(
                 t("Amazon-Startseite öffnen", "Open Amazon home"),
                 { onAction(SettingsAction.AMAZON_HOME) },
                 subtitle = t("10 Minuten ohne Umleitung, z. B. für Updates", "10 minutes without redirect, e.g. for updates"),

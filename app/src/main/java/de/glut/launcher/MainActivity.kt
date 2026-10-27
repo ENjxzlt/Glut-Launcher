@@ -108,6 +108,8 @@ class MainActivity : ComponentActivity() {
     private var overlay by mutableStateOf<Overlay?>(null)
     private var serviceEnabled by mutableStateOf(false)
     private var keyFilterSupported by mutableStateOf(false)
+    /** Glut ist selbst der Standard-Launcher (z. B. Amazons Launcher deaktiviert, Root/ADB). */
+    private var onlyLauncher by mutableStateOf(false)
     private var focusKey by mutableIntStateOf(0)
     private val smartHome = mutableStateListOf<HaEntity>()
     private var haEntities by mutableStateOf<List<HaEntity>>(emptyList())
@@ -219,6 +221,7 @@ class MainActivity : ComponentActivity() {
                 focusKey = focusKey,
                 serviceEnabled = serviceEnabled,
                 keyFilterSupported = keyFilterSupported,
+                onlyLauncher = onlyLauncher,
                 mediaAccess = media.hasAccess,
                 haStatus = haStatus,
                 updater = updater,
@@ -298,6 +301,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
             Overlay.QuickActions -> QuickActionsDialog(
+                onlyLauncher = onlyLauncher,
                 onSleep = {
                     closeOverlay()
                     if (HomeRedirectService.instance?.sleep() != true) toast(t("Schlafen wird auf diesem Gerät nicht unterstützt.", "Sleep is not supported on this device."))
@@ -361,11 +365,32 @@ class MainActivity : ComponentActivity() {
         prefs.clearAmazonHomeBypass()
         serviceEnabled = HomeRedirectService.isEnabled(this)
         keyFilterSupported = HomeRedirectService.canFilterKeys()
+        onlyLauncher = isDefaultHome()
         if (appsDirty) refreshApps()
         media.start()
         endKinoMode()
         refreshSmartHome()
         autoCheckUpdate()
+    }
+
+    private fun isDefaultHome(): Boolean {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val info = packageManager.resolveActivity(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+        return info?.activityInfo?.packageName == packageName
+    }
+
+    /**
+     * Ist Glut der einzige Launcher, bekommt das System die lange Home-Taste und das
+     * Schnellmenü ist sonst nicht erreichbar: Menü-Taste (☰) öffnet es stattdessen.
+     * Kacheln behandeln ☰ selbst (App-Optionen); hier landet nur, was frei ist.
+     */
+    override fun onKeyUp(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_MENU && onlyLauncher && overlay == null) {
+            overlay = Overlay.QuickActions
+            focusKey++
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     override fun onPause() {

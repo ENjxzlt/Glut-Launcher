@@ -3,6 +3,15 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] – 2026-10-27
+
+### Added
+- *Only launcher* mode: when Glut is the system's default home app (for example
+  with Amazon's launcher disabled on a rooted device), the Menu button (☰) on
+  the home screen opens the quick menu (sleep, restart, settings).
+- In this mode the settings and the quick menu hide the Amazon home and Home
+  button redirect options, which do not apply.
+
 ## [1.0.0] – 2026-10-10
 
 First stable release. Tested on a Fire TV Stick Lite (Fire OS 7).

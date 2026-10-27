@@ -330,9 +330,10 @@ fun TextInputDialog(
     }
 }
 
-/** Schnellmenü bei langem Druck auf die Home-Taste. */
+/** Schnellmenü bei langem Druck auf die Home-Taste (als einziger Launcher: Menü-Taste). */
 @Composable
 fun QuickActionsDialog(
+    onlyLauncher: Boolean,
     onSleep: () -> Unit,
     onSettings: () -> Unit,
     onFireSettings: () -> Unit,
@@ -346,7 +347,7 @@ fun QuickActionsDialog(
         MenuRow(t("Neu starten", "Restart"), onRestart)
         MenuRow(t("Launcher-Einstellungen", "Launcher settings"), onSettings)
         MenuRow(t("Fire-TV-Einstellungen", "Fire TV settings"), onFireSettings)
-        MenuRow(t("Amazon-Startseite öffnen", "Open Amazon home"), onAmazonHome, subtitle = t("10 Minuten ohne Umleitung", "10 minutes without redirect"))
+        if (!onlyLauncher) MenuRow(t("Amazon-Startseite öffnen", "Open Amazon home"), onAmazonHome, subtitle = t("10 Minuten ohne Umleitung", "10 minutes without redirect"))
         MenuRow(t("Abbrechen", "Cancel"), onClose)
     }
 }
