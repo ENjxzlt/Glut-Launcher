@@ -219,9 +219,10 @@ class MainActivity : ComponentActivity() {
                 onOpenApps = { screen = Screen.APPS },
                 onOpenMenu = { screen = Screen.SETTINGS },
                 onOpenSearch = { screen = Screen.SEARCH },
-                onOpenWifi = ::openWifiPage,
-                onOpenProfile = ::openUsersPage,
-                onOpenSettings = ::openSystem,
+                // Die Systemseiten brauchen Root und sind nur sinnvoll, wenn Glut der Standard-Launcher ist.
+                onOpenWifi = { if (onlyLauncher) openWifiPage() else openWifi() },
+                onOpenProfile = { if (onlyLauncher) openUsersPage() else openProfiles() },
+                onOpenSettings = { if (onlyLauncher) openSystem() else startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
                 onOpenBluetooth = ::openBluetooth,
                 onOpenAmazonHome = ::openAmazonHome,
             )
@@ -591,7 +592,7 @@ class MainActivity : ComponentActivity() {
      * Bedienungshilfen-Dienst, sonst „Mein Fire TV“ mit dem Neustart-Eintrag.
      */
     private fun restart() {
-        if (prefs.rootMode && rootAvailable) {
+        if (onlyLauncher && prefs.rootMode && rootAvailable) {
             lifecycleScope.launch { RootShell.run("reboot") }
             return
         }
@@ -605,7 +606,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun sleepNow() {
-        if (prefs.rootMode && rootAvailable) {
+        if (onlyLauncher && prefs.rootMode && rootAvailable) {
             lifecycleScope.launch { RootShell.run("input keyevent 223") }
         } else if (HomeRedirectService.instance?.sleep() != true) {
             toast(t("Schlafen wird auf diesem Gerät nicht unterstützt.", "Sleep is not supported on this device."))

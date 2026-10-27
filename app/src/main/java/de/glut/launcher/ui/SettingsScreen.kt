@@ -161,7 +161,7 @@ fun SettingsScreen(
             }
 
             Header("System")
-            MenuRow(
+            if (onlyLauncher) MenuRow(
                 t("System & Netzwerk (Root)", "System & network (root)"),
                 { onAction(SettingsAction.SYSTEM) },
                 subtitle = t("WLAN, Benutzer, Energie", "Wi-Fi, users, power"),
