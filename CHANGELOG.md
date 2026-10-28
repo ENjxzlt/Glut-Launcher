@@ -3,6 +3,16 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] – 2026-10-28
+
+### Changed
+- New look inspired by Apple TV: a tab bar (Home / Apps / Search), a large
+  top shelf that shows the focused app (with the now-playing widget), bigger
+  rounded tiles, a lift-and-shadow focus effect instead of the coloured frame,
+  light pill rows in menus, a two-pane settings layout and a soft fade at the
+  bottom of the home screen.
+- Colour themes, tile styles and all features stay as they were.
+
 ## [1.4.1] – 2026-10-28
 
 ### Changed
