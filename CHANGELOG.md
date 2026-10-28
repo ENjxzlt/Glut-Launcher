@@ -3,6 +3,22 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] – 2026-10-28
+
+### Added
+- Jellyfin suggestions on the home screen (Settings → Jellyfin): *Continue
+  watching*, *Recently added* and *Suggested*. Sign in with Quick Connect or
+  username and password. The focused card shows its details in place of the clock.
+- Icon pack support (ADW/Nova format, Settings → Appearance → Icon pack).
+
+### Changed
+- Home screen: *Recently used* is gone; a very large clock (Lexend) with a
+  light gradient; glass-style tab bar, smart home card and now-playing card.
+- Favourites are a dock of square (1:1) app icons.
+
+> Tested on a Fire TV Stick 4K Max against a mock Jellyfin server and a
+> synthetic icon pack; not against a real Jellyfin 12 server or a Play Store pack.
+
 ## [1.5.0] – 2026-10-28
 
 ### Changed
