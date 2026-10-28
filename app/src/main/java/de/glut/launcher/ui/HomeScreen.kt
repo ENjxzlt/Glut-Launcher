@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,12 +25,19 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -38,6 +46,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.glut.launcher.data.AppArt
 import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
 import de.glut.launcher.data.Folder
@@ -90,25 +99,38 @@ fun HomeScreen(
     }
     val showSmartHome = prefs.haEnabled && prefs.haTilesEnabled && smartHome.isNotEmpty()
     val firstFocus = remember { FocusRequester() }
+    // Die große Fläche oben zeigt die App, die gerade markiert ist (Apple-TV-Art).
+    var focusedPackage by remember { mutableStateOf<String?>(null) }
+    val heroApp: AppEntry? = focusedPackage?.let { byPackage[it] }
+        ?: recents.firstOrNull()
+        ?: favorites.filterIsInstance<AppEntry>().firstOrNull()
 
     LaunchedEffect(apps.isNotEmpty(), focusKey) {
         withFrameNanos { }
         runCatching { firstFocus.requestFocus() }
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, top = 28.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, top = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        // Kopfzeile: Uhr, Suchleiste, Symbole
+        // Kopfzeile: Uhr, Reiter, Symbole
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Txt(formatClock(now), size = 36.sp, color = Theme.fg0, family = Theme.clockFont, weight = FontWeight.Medium)
-                Txt(formatDate(now), size = 12.sp, color = Theme.fg4)
+            Column(Modifier.width(220.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Txt(formatClock(now), size = 30.sp, color = Theme.fg0, family = Theme.clockFont, weight = FontWeight.Medium)
+                Txt(formatDate(now), size = 11.sp, color = Theme.fg4)
             }
-            Spacer(Modifier.width(32.dp))
-            SearchBar(onClick = onOpenSearch, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier.background(Theme.bg1.copy(alpha = 0.7f), RoundedCornerShape(50)).padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Pill(t("Start", "Home"), {}, selected = true)
+                Pill(t("Apps", "Apps"), onOpenApps)
+                Pill(t("Suche", "Search"), onOpenSearch, icon = Icons.search)
+            }
+            Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(Icons.wifi, "WLAN", onOpenWifi)
                 IconButton(Icons.profile, t("Profil", "Profile"), onOpenProfile)
@@ -123,15 +145,28 @@ fun HomeScreen(
         val focusAllApps = !focusRecent && !focusFavorite
         val firstFocusModifier = Modifier.focusRequester(firstFocus)
 
+        // Die große Fläche bleibt stehen, nur die Reihen darunter scrollen.
+        if (heroApp != null || (nowPlaying != null && prefs.musicWidget)) {
+            HeroShelf(
+                repository = repository,
+                app = heroApp,
+                meta = heroApp?.let { app -> prefs.usage[app.packageName]?.lastUsed?.takeIf { it > 0L }?.let { formatRelative(it, now) } },
+                nowPlaying = nowPlaying.takeIf { prefs.musicWidget },
+                onLaunch = onLaunch,
+                onOptions = onOptions,
+                onMediaOpen = onMediaOpen,
+                onMediaPlayPause = onMediaPlayPause,
+                onMediaNext = onMediaNext,
+                onMediaPrevious = onMediaPrevious,
+            )
+        }
+
+
         // Der Inhalt scrollt, wenn Smart Home & Co. nicht mehr auf den Bildschirm passen.
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (nowPlaying != null && prefs.musicWidget) {
-                NowPlayingCard(nowPlaying, onMediaOpen, onMediaPlayPause, onMediaNext, onMediaPrevious)
-            }
-
             if (recents.isNotEmpty()) {
                 Section(t("Zuletzt genutzt", "Recently used")) {
                     LazyRow(
@@ -149,6 +184,7 @@ fun HomeScreen(
                                 meta = formatRelative(prefs.usage[app.packageName]?.lastUsed ?: now, now),
                                 onClick = { onLaunch(app) },
                                 onMenu = { onOptions(app) },
+                                onFocusChange = { if (it) focusedPackage = app.packageName },
                                 modifier = if (index == 0 && focusRecent) firstFocusModifier else Modifier,
                             )
                         }
@@ -180,6 +216,7 @@ fun HomeScreen(
                                 width = 108.dp,
                                 onClick = { onLaunch(item) },
                                 onMenu = { onOptions(item) },
+                                onFocusChange = { if (it) focusedPackage = item.packageName },
                                 modifier = focus,
                             )
                         }
@@ -211,10 +248,90 @@ fun HomeScreen(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            KeyHint("OK", t("Öffnen", "Open"))
-            KeyHint(t("MENÜ", "MENU"), t("Favorit, Ordner, Ausblenden", "Favourite, folder, hide"))
-            KeyHint(t("ZURÜCK", "BACK"), t("Startseite", "Home"))
+    }
+    // Unten blendet der Inhalt weich aus, darüber die Tastenhinweise.
+    Box(
+        Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .height(96.dp)
+            .background(Brush.verticalGradient(0f to Color.Transparent, 0.55f to Theme.bg0h.copy(alpha = 0.92f), 1f to Theme.bg0h.copy(alpha = 0.98f))),
+    )
+    Row(
+        modifier = Modifier.align(Alignment.BottomStart).padding(start = 48.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        KeyHint("OK", t("Öffnen", "Open"))
+        KeyHint(t("MENÜ", "MENU"), t("Favorit, Ordner, Ausblenden", "Favourite, folder, hide"))
+    }
+    }
+}
+
+/** Große Fläche oben: die markierte App mit Öffnen/Optionen, rechts das Musik-Widget. */
+@Composable
+private fun HeroShelf(
+    repository: AppRepository,
+    app: AppEntry?,
+    meta: String?,
+    nowPlaying: NowPlaying?,
+    onLaunch: (AppEntry) -> Unit,
+    onOptions: (AppEntry) -> Unit,
+    onMediaOpen: () -> Unit,
+    onMediaPlayPause: () -> Unit,
+    onMediaNext: () -> Unit,
+    onMediaPrevious: () -> Unit,
+) {
+    val tint = if (app != null) Theme.swatchFor(app.packageName) else LocalAccent.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Brush.horizontalGradient(listOf(tint.copy(alpha = 0.5f), Theme.bg1.copy(alpha = 0.55f))))
+            .padding(horizontal = 28.dp, vertical = 22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (app != null) {
+                Txt(
+                    if (meta != null) t("ZULETZT GENUTZT · ", "RECENTLY USED · ") + meta.uppercase() else t("FAVORIT", "FAVOURITE"),
+                    size = 9.sp,
+                    color = Theme.fg2,
+                    weight = FontWeight.SemiBold,
+                )
+                Txt(app.label, size = 30.sp, color = Theme.fg0, weight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill(t("Öffnen", "Open"), { onLaunch(app) }, selected = true)
+                    Pill(t("Optionen", "Options"), { onOptions(app) })
+                }
+            }
+        }
+        if (app != null) {
+            val art by produceState<AppArt?>(null, app.packageName) { value = repository.loadArt(app) }
+            val image = art?.banner ?: art?.logo ?: art?.icon
+            if (image != null) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 20.dp)
+                        .fillMaxHeight()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Theme.bg0h.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        bitmap = image,
+                        contentDescription = app.label,
+                        contentScale = if (art?.banner != null) ContentScale.Crop else ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().padding(if (art?.banner != null) 0.dp else 14.dp),
+                    )
+                }
+            }
+        }
+        if (nowPlaying != null) {
+            Spacer(Modifier.width(20.dp))
+            NowPlayingCard(nowPlaying, onMediaOpen, onMediaPlayPause, onMediaNext, onMediaPrevious)
         }
     }
 }
@@ -230,8 +347,7 @@ private fun NowPlayingCard(
 ) {
     Row(
         modifier = Modifier
-            .padding(horizontal = 8.dp)
-            .background(Theme.bg1.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+            .background(Theme.bg0h.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -250,7 +366,7 @@ private fun NowPlayingCard(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.music, size = 22.dp, tint = Theme.fg3) }
             }
         }
-        Column(Modifier.width(300.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.width(170.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Txt(if (media.isPlaying) t("Läuft gerade", "Now playing") else t("Pausiert", "Paused"), size = 9.sp, color = LocalAccent.current)
             Txt(media.title, size = 13.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
             if (media.artist.isNotBlank()) Txt(media.artist, size = 10.5.sp, color = Theme.fg3)
@@ -309,7 +425,7 @@ private fun SmartHomeTile(entity: HaEntity, onClick: () -> Unit) {
 @Composable
 fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Txt(title, size = 13.sp, weight = FontWeight.SemiBold)
+        Txt(title, size = 15.sp, weight = FontWeight.SemiBold, color = Theme.fg0)
         content()
     }
 }

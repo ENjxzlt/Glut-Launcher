@@ -5,6 +5,8 @@ import de.glut.launcher.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -109,21 +111,30 @@ fun SettingsScreen(
     }
     val firstRow = Modifier.focusRequester(first)
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    // Zweigeteilt wie bei Apple TV: links der Titel der Seite, rechts die Einträge.
+    Row(Modifier.fillMaxSize().padding(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
         Column(
-            modifier = Modifier
-                .width(640.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(top = 28.dp, bottom = 60.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.width(280.dp).fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Txt(page.label, size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
+            Txt(page.label, size = 30.sp, color = Theme.fg0, weight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
             Txt(
                 if (page == SettingsPage.ROOT) "Glut Launcher ${updater.currentVersion}" else page.breadcrumb,
                 size = 11.sp,
                 color = Theme.fg4,
+                maxLines = 2,
             )
-            Spacer(Modifier.height(14.dp))
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 44.dp, bottom = 60.dp, end = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
 
             when (page) {
                 SettingsPage.ROOT -> {

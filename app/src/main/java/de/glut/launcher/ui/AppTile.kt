@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -76,9 +78,11 @@ fun AppTile(
     modifier: Modifier = Modifier,
     meta: String? = null,
     large: Boolean = false,
+    onFocusChange: ((Boolean) -> Unit)? = null,
 ) {
+    var tileFocused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val art by produceState<AppArt?>(null, app.packageName) { value = repository.loadArt(app) }
-    val shape = RoundedCornerShape(if (large) 10.dp else 8.dp)
+    val shape = RoundedCornerShape(if (large) 16.dp else 14.dp)
     // Banner-Stile: echtes Banner, sonst ein aus Logo oder Symbol erzeugtes.
     val showBanner = style != TileStyle.PLAIN && (art?.banner != null || art?.logo != null || art?.icon != null)
     val tone = Theme.fg1
@@ -89,6 +93,8 @@ fun AppTile(
             onClick = onClick,
             onMenu = onMenu,
             shape = shape,
+            focusedScale = 1.08f,
+            onFocusChange = { tileFocused = it; onFocusChange?.invoke(it) },
             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
         ) { focused ->
             val currentArt = art
@@ -108,11 +114,12 @@ fun AppTile(
             }
         }
         if (showBanner) {
-            Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.height(if (tileFocused) 9.dp else 6.dp))
             Txt(
                 text = if (meta != null) "${app.label} · $meta" else app.label,
-                size = if (large) 9.sp else 8.5.sp,
-                color = Theme.fg4,
+                size = if (large) 9.5.sp else 9.sp,
+                color = if (tileFocused) Theme.fg0 else Theme.fg4,
+                weight = if (tileFocused) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
     }

@@ -38,20 +38,23 @@ fun Focusable(
     color: Color = Theme.bg1,
     focusedColor: Color = Theme.bg2,
     focusedScale: Float = 1.06f,
+    onFocusChange: ((Boolean) -> Unit)? = null,
     content: @Composable BoxScope.(focused: Boolean) -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) focusedScale else 1f, label = "focusScale")
-    val accent = LocalAccent.current
     Box(
         modifier = modifier
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                shadowElevation = if (focused) 24f else 0f
+                shadowElevation = if (focused) 56f else 0f
                 this.shape = shape
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocusChange?.invoke(it.isFocused)
+            }
             .onPreviewKeyEvent { event ->
                 if (onMenu != null && event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_MENU) {
                     if (event.type == KeyEventType.KeyUp) onMenu()
@@ -62,7 +65,7 @@ fun Focusable(
             }
             .clip(shape)
             .background(if (focused) focusedColor else color)
-            .then(if (focused) Modifier.border(2.dp, accent, shape) else Modifier)
+            .then(if (focused) Modifier.border(1.5.dp, Theme.fg0.copy(alpha = 0.55f), shape) else Modifier)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

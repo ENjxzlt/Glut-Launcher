@@ -84,11 +84,11 @@ fun AppsScreen(
 
     Column(
         modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, top = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Txt(t("Alle Apps", "All apps"), size = 28.sp, color = Theme.fg0, weight = FontWeight.SemiBold)
+                Txt(t("Alle Apps", "All apps"), size = 30.sp, color = Theme.fg0, weight = FontWeight.Bold)
                 Txt(
                     t("${visible.size} Apps · $hiddenCount ausgeblendet", "${visible.size} apps · $hiddenCount hidden") +
                         if (prefs.hideSystemApps) " · ${apps.count { it.isSystem }} System" else "",
@@ -157,8 +157,8 @@ fun AppGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
         contentPadding = PaddingValues(
             start = 6.dp + ShadowBleedX,
             end = 6.dp + ShadowBleedX,

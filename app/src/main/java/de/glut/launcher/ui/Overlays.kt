@@ -66,27 +66,27 @@ fun MenuRow(
 ) {
     Focusable(
         onClick = onClick,
-        shape = RoundedCornerShape(7.dp),
+        shape = RoundedCornerShape(14.dp),
         color = Color.Transparent,
-        focusedColor = Theme.bg2,
+        focusedColor = Theme.fg0,
         focusedScale = 1.02f,
-        modifier = modifier.fillMaxWidth().heightIn(min = 38.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 44.dp),
     ) { focused ->
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Txt(
                     title,
-                    size = 12.sp,
-                    color = if (focused) Theme.fg0 else titleColor,
+                    size = 12.5.sp,
+                    color = if (focused) Theme.bg0 else titleColor,
                     weight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
                 )
-                if (subtitle != null) Txt(subtitle, size = 9.sp, color = if (focused) Theme.fg2 else Theme.fg4, maxLines = 2)
+                if (subtitle != null) Txt(subtitle, size = 9.sp, color = if (focused) Theme.bg3 else Theme.fg4, maxLines = 2)
             }
-            if (value != null) Txt(value, size = 11.sp, color = if (focused) Theme.fg2 else Theme.fg4)
+            if (value != null) Txt(value, size = 11.sp, color = if (focused) Theme.bg3 else Theme.fg4)
             if (checked) Icon(Icons.check, size = 15.dp, tint = LocalAccent.current)
         }
     }
@@ -120,7 +120,7 @@ fun DialogPanel(
             modifier = Modifier
                 .width(width)
                 .heightIn(max = 480.dp)
-                .background(Theme.bg0, RoundedCornerShape(12.dp))
+                .background(Theme.bg1.copy(alpha = 0.94f), RoundedCornerShape(22.dp))
                 .trapFocus()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
