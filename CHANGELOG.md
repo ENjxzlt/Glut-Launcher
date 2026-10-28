@@ -3,6 +3,11 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.6.2] – 2026-10-28
+
+### Changed
+- Dock: the apps are centred in the glass bar and no longer show a title when focused.
+
 ## [1.6.1] – 2026-10-28
 
 ### Fixed
