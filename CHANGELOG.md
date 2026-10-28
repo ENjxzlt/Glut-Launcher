@@ -3,6 +3,14 @@
 All notable changes to Glut Launcher. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.6.1] – 2026-10-28
+
+### Fixed
+- Dock icons: logos on a transparent background (Play Store) and icons whose
+  artwork touches the edge (YouTube) now sit on a plate with a margin, wide
+  logos are fitted instead of stretched. Normal rounded icons still fill the
+  square.
+
 ## [1.6.0] – 2026-10-28
 
 ### Added
