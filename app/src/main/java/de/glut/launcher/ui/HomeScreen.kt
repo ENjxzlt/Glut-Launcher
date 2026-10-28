@@ -193,8 +193,8 @@ fun HomeScreen(
         ) {
             LazyRow(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
             ) {
                 itemsIndexed(favorites, key = { _, item -> if (item is Folder) item.favoriteKey else (item as AppEntry).packageName }) { index, item ->
                     val focus = if (index == 0 && focusFavorite) firstFocusModifier else Modifier

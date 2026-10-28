@@ -37,19 +37,6 @@ import de.glut.launcher.data.AppEntry
 import de.glut.launcher.data.AppRepository
 import de.glut.launcher.data.Folder
 
-/** Beschriftung unter einer Dock-Kachel: nur die markierte zeigt ihren Namen, die Höhe bleibt gleich. */
-@Composable
-private fun DockLabel(text: String, focused: Boolean, width: Dp) {
-    Spacer(Modifier.height(4.dp))
-    Txt(
-        text = if (focused) text else " ",
-        size = 8.5.sp,
-        color = Theme.fg0,
-        weight = FontWeight.SemiBold,
-        modifier = Modifier.width(width),
-    )
-}
-
 /** App als Quadrat (1:1) mit abgerundeten Ecken, wie im Dock von Apple TV. */
 @Composable
 fun SquareAppTile(
@@ -62,14 +49,13 @@ fun SquareAppTile(
     onFocusChange: ((Boolean) -> Unit)? = null,
 ) {
     val art by produceState<AppArt?>(null, app.packageName, repository.packVersion) { value = repository.loadArt(app) }
-    var focused by remember { mutableStateOf(false) }
     Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
         Focusable(
             onClick = onClick,
             onMenu = onMenu,
             shape = RoundedCornerShape(size * 0.27f),
             focusedScale = 1.14f,
-            onFocusChange = { focused = it; onFocusChange?.invoke(it) },
+            onFocusChange = onFocusChange,
             modifier = Modifier.size(size),
         ) { _ ->
             val current = art
@@ -90,7 +76,6 @@ fun SquareAppTile(
                 }
             }
         }
-        DockLabel(app.label, focused, size + 20.dp)
     }
 }
 
@@ -103,7 +88,6 @@ fun SquareFolderTile(
     onMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var focused by remember { mutableStateOf(false) }
     Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
         Focusable(
             onClick = onClick,
@@ -111,7 +95,6 @@ fun SquareFolderTile(
             shape = RoundedCornerShape(size * 0.27f),
             color = Theme.fg0.copy(alpha = 0.14f),
             focusedScale = 1.14f,
-            onFocusChange = { focused = it },
             modifier = Modifier.size(size),
         ) { _ ->
             Column(Modifier.fillMaxSize().padding(size * 0.17f), verticalArrangement = Arrangement.spacedBy(size * 0.08f)) {
@@ -125,21 +108,18 @@ fun SquareFolderTile(
                 }
             }
         }
-        DockLabel(folder.name, focused, size + 20.dp)
     }
 }
 
 /** „+“-Quadrat am Ende des Docks. */
 @Composable
 fun SquareAddTile(size: Dp, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    var focused by remember { mutableStateOf(false) }
     Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
         Focusable(
             onClick = onClick,
             shape = RoundedCornerShape(size * 0.27f),
             color = androidx.compose.ui.graphics.Color.Transparent,
             focusedScale = 1.14f,
-            onFocusChange = { focused = it },
             modifier = Modifier
                 .size(size)
                 .drawBehind {
@@ -152,6 +132,5 @@ fun SquareAddTile(size: Dp, onClick: () -> Unit, modifier: Modifier = Modifier) 
         ) { _ ->
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.plus, size = size * 0.4f, tint = Theme.fg0) }
         }
-        DockLabel(t("Hinzufügen", "Add"), focused, size + 20.dp)
     }
 }
