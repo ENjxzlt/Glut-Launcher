@@ -1,6 +1,8 @@
 package de.glut.launcher.data
 
 import android.content.ComponentName
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -74,6 +76,17 @@ class AppRepository(private val context: Context) {
             .setComponent(ComponentName(app.packageName, app.activityName))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
+    /** Gewähltes Icon-Pack; mit [setIconPack] wechseln, dann laden sich die Symbole neu. */
+    private var pack: IconPack? = null
+    var packVersion by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+
+    fun setIconPack(value: IconPack?) {
+        pack = value
+        artCache.clear()
+        packVersion++
+    }
+
     suspend fun loadArt(app: AppEntry): AppArt {
         artCache[app.packageName]?.let { return it }
         return withContext(Dispatchers.IO) {
@@ -86,7 +99,8 @@ class AppRepository(private val context: Context) {
             val logo = if (banner != null) null else runCatching {
                 pm.getActivityLogo(component) ?: pm.getApplicationLogo(app.packageName)
             }.getOrNull()?.takeIf { it.intrinsicWidth > it.intrinsicHeight * 1.3f }
-            val iconBitmap = icon?.let { runCatching { it.toBitmap(144, 144) }.getOrNull() }
+            val themed = pack?.let { p -> p.iconFor(component) ?: icon?.let { p.fallback(it, app.packageName) } }
+            val iconBitmap = themed ?: icon?.let { runCatching { it.toBitmap(144, 144) }.getOrNull() }
             AppArt(
                 banner = banner?.render(320, 180),
                 icon = iconBitmap?.asImageBitmap(),

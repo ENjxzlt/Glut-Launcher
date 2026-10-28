@@ -81,7 +81,7 @@ fun AppTile(
     onFocusChange: ((Boolean) -> Unit)? = null,
 ) {
     var tileFocused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    val art by produceState<AppArt?>(null, app.packageName) { value = repository.loadArt(app) }
+    val art by produceState<AppArt?>(null, app.packageName, repository.packVersion) { value = repository.loadArt(app) }
     val shape = RoundedCornerShape(if (large) 16.dp else 14.dp)
     // Banner-Stile: echtes Banner, sonst ein aus Logo oder Symbol erzeugtes.
     val showBanner = style != TileStyle.PLAIN && (art?.banner != null || art?.logo != null || art?.icon != null)

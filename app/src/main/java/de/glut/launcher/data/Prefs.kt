@@ -31,6 +31,8 @@ class Prefs(context: Context) {
     var ground by enumPref("ground", Ground.MEDIUM)
     /** Dateiname im Ordner für eigene Hintergründe. */
     var customBackground by stringPref("customBackground")
+    /** Paketname des gewählten Icon-Packs, leer = Symbole der Apps. */
+    var iconPack by stringPref("iconPack")
     /** Abdunkelung über eigenen Hintergründen in Prozent. */
     var backgroundDim by pref("backgroundDim", 40, { it.toIntOrNull() }, { it.toString() })
     var accent by enumPref("accent", Accent.YELLOW)
@@ -50,6 +52,25 @@ class Prefs(context: Context) {
     var screensaverClock by boolPref("screensaverClock", true)
     /** Was vor Glut als Bildschirmschoner eingestellt war, zum Zurücksetzen. */
     var screensaverPrevious by stringPref("screensaverPrevious")
+
+    // Jellyfin
+    var jellyfinEnabled by boolPref("jellyfinEnabled", true)
+    var jellyfinUrl by stringPref("jellyfinUrl")
+    var jellyfinToken by stringPref("jellyfinToken")
+    var jellyfinUserId by stringPref("jellyfinUserId")
+    var jellyfinUserName by stringPref("jellyfinUserName")
+    var jellyfinDeviceId by stringPref("jellyfinDeviceId")
+    var jellyfinContinue by boolPref("jellyfinContinue", true)
+    var jellyfinNew by boolPref("jellyfinNew", true)
+    var jellyfinRecommended by boolPref("jellyfinRecommended", true)
+    var jellyfinCount by pref("jellyfinCount", 12, { it.toIntOrNull() }, { it.toString() })
+    val jellyfinConnected: Boolean get() = jellyfinUrl.isNotBlank() && jellyfinToken.isNotBlank()
+
+    fun jellyfinLogout() {
+        jellyfinToken = ""
+        jellyfinUserId = ""
+        jellyfinUserName = ""
+    }
 
     // Startseite
     var redirectHome by boolPref("redirectHome", true)

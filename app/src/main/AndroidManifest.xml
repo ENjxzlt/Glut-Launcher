@@ -21,6 +21,12 @@
         <package android:name="com.amazon.tv.settings.v2" />
         <package android:name="com.amazon.tv.settings" />
         <package android:name="com.amazon.tv.launcher" />
+        <!-- Icon-Packs finden -->
+        <intent><action android:name="org.adw.launcher.THEMES" /></intent>
+        <intent><action android:name="com.novalauncher.THEME" /></intent>
+        <intent><action android:name="com.anddoes.launcher.THEME" /></intent>
+        <intent><action android:name="com.gau.go.launcherex.theme" /></intent>
+        <intent><action android:name="fr.neamar.kiss.THEME" /></intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />

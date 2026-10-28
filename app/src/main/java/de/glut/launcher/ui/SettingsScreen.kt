@@ -40,6 +40,7 @@ enum class SettingsAction {
     TOGGLE_ROOT_MODE, TOGGLE_ADB_NET, TOGGLE_ADB_DEBUG, TOGGLE_SOUND_FX, CYCLE_VOLUME,
     PICK_MANAGED_APP, CHECK_ROOT,
     SCREENSAVER_TOGGLE, SCREENSAVER_TIMEOUT, SCREENSAVER_PREVIEW,
+    JELLYFIN_URL, JELLYFIN_QUICK, JELLYFIN_LOGIN, JELLYFIN_LOGOUT, ICON_PACK,
 }
 
 /** Seiten der Einstellungen. Jede Seite kennt ihre übergeordnete, „Zurück“ führt dorthin. */
@@ -49,6 +50,7 @@ enum class SettingsPage(private val de: String, private val en: String, val pare
     HOME_APPS("Startseite & Apps", "Home & apps", ROOT),
     WAKE("Beim Einschalten", "On wake-up", ROOT),
     SMART_HOME("Smart Home", "Smart home", ROOT),
+    JELLYFIN("Jellyfin", "Jellyfin", ROOT),
     HOME_BUTTON("Home-Taste", "Home button", ROOT),
     SCREENSAVER("Bildschirmschoner", "Screensaver", ROOT),
     UPDATES("Updates & Info", "Updates & info", ROOT),
@@ -142,6 +144,12 @@ fun SettingsScreen(
                     SubMenuRow(SettingsPage.HOME_APPS, t("Ordner, Systemapps, Musik-Widget", "Folders, system apps, now-playing widget"), Modifier, onNavigate)
                     SubMenuRow(SettingsPage.WAKE, t("Einschalt-App: ", "Startup app: ") + onOff(prefs.startupEnabled), Modifier, onNavigate)
                     SubMenuRow(SettingsPage.SMART_HOME, "Home Assistant: " + onOff(prefs.haEnabled), Modifier, onNavigate)
+                    SubMenuRow(
+                        SettingsPage.JELLYFIN,
+                        if (prefs.jellyfinConnected) t("Angemeldet als ${prefs.jellyfinUserName}", "Signed in as ${prefs.jellyfinUserName}") else t("Nicht verbunden", "Not connected"),
+                        Modifier,
+                        onNavigate,
+                    )
                     if (!onlyLauncher) SubMenuRow(SettingsPage.HOME_BUTTON, t("Umleitung: ", "Redirect: ") + onOff(prefs.redirectHome), Modifier, onNavigate)
                     if (onlyLauncher) SubMenuRow(SettingsPage.SCREENSAVER, if (system.screensaverActive) t("Glut-Bildschirmschoner aktiv", "Glut screensaver active") else t("Amazon-Bildschirmschoner", "Amazon screensaver"), Modifier, onNavigate)
                     SubMenuRow(SettingsPage.UPDATES, t("Version ", "Version ") + updater.currentVersion, Modifier, onNavigate)
@@ -178,6 +186,12 @@ fun SettingsScreen(
                         )
                     }
                     MenuRow(t("Kontrast", "Contrast"), { prefs.ground = prefs.ground.next(Ground.entries.toTypedArray()) }, value = prefs.ground.label)
+                    MenuRow(
+                        t("Icon-Pack", "Icon pack"),
+                        { onAction(SettingsAction.ICON_PACK) },
+                        value = if (prefs.iconPack.isBlank()) t("Standard", "Default") else appLabel(prefs.iconPack),
+                        subtitle = t("Apps sehen aus wie auf dem Handy (Pack aus dem Play Store)", "Apps look like on a phone (pack from the Play Store)"),
+                    )
                     MenuRow(t("Kachelstil", "Tile style"), { prefs.tileStyle = prefs.tileStyle.next(TileStyle.entries.toTypedArray()) }, value = prefs.tileStyle.label)
                 }
 
@@ -243,6 +257,40 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+
+                SettingsPage.JELLYFIN -> {
+                    MenuRow(
+                        t("Vorschläge auf der Startseite", "Suggestions on the home screen"),
+                        { prefs.jellyfinEnabled = !prefs.jellyfinEnabled },
+                        firstRow,
+                        value = onOff(prefs.jellyfinEnabled),
+                        subtitle = t("Die Leiste unter der Uhr", "The strip below the clock"),
+                    )
+                    MenuRow(t("Server", "Server"), { onAction(SettingsAction.JELLYFIN_URL) }, value = prefs.jellyfinUrl.ifBlank { t("nicht gesetzt", "not set") })
+                    if (prefs.jellyfinConnected) {
+                        MenuRow(
+                            t("Konto", "Account"),
+                            { onAction(SettingsAction.JELLYFIN_LOGOUT) },
+                            value = prefs.jellyfinUserName,
+                            subtitle = t("OK zum Abmelden", "Press OK to sign out"),
+                        )
+                    } else {
+                        MenuRow(
+                            t("Mit Quick Connect anmelden", "Sign in with Quick Connect"),
+                            { onAction(SettingsAction.JELLYFIN_QUICK) },
+                            subtitle = t("Code in einer angemeldeten Jellyfin-App bestätigen, kein Passwort nötig", "Confirm a code in a signed-in Jellyfin app, no password needed"),
+                        )
+                        MenuRow(t("Mit Benutzername & Passwort anmelden", "Sign in with username & password"), { onAction(SettingsAction.JELLYFIN_LOGIN) })
+                    }
+                    MenuRow(t("Weiter schauen", "Continue watching"), { prefs.jellyfinContinue = !prefs.jellyfinContinue }, value = onOff(prefs.jellyfinContinue))
+                    MenuRow(t("Neu hinzugefügt", "Recently added"), { prefs.jellyfinNew = !prefs.jellyfinNew }, value = onOff(prefs.jellyfinNew))
+                    MenuRow(t("Empfohlen", "Suggested"), { prefs.jellyfinRecommended = !prefs.jellyfinRecommended }, value = onOff(prefs.jellyfinRecommended))
+                    MenuRow(
+                        t("Anzahl", "Count"),
+                        { prefs.jellyfinCount = when { prefs.jellyfinCount < 8 -> 8; prefs.jellyfinCount < 12 -> 12; prefs.jellyfinCount < 16 -> 16; prefs.jellyfinCount < 20 -> 20; else -> 8 } },
+                        value = "${prefs.jellyfinCount}",
+                    )
                 }
 
                 SettingsPage.HOME_BUTTON -> {

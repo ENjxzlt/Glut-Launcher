@@ -62,6 +62,7 @@ object Icons {
     val kids = lineIcon("M12 3a6 6 0 1 1 0 12a6 6 0 1 1 0-12z M9.5 8h.01 M14.5 8h.01 M9.5 11a3.5 3.5 0 0 0 5 0 M12 15l-1.5 6 M12 15l1.5 6")
     val photo = lineIcon("M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M3 16l5-5l4 4l3-3l6 6 M15.5 9.5h.01")
     val globe = lineIcon("M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M3 12h18 M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 6-3.5 9s1 6.5 3.5 9")
+    val plus = lineIcon("M12 5v14 M5 12h14")
     val check = lineIcon("M5 12l5 5l9-10")
     val folder = lineIcon("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z")
     val bulb = lineIcon("M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z")

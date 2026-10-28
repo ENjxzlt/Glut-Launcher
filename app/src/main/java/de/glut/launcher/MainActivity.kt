@@ -37,6 +37,11 @@ import de.glut.launcher.data.AppRepository
 import de.glut.launcher.data.Folder
 import de.glut.launcher.data.HaEntity
 import de.glut.launcher.data.HomeAssistant
+import de.glut.launcher.data.IconPack
+import de.glut.launcher.data.Jellyfin
+import de.glut.launcher.data.JellyfinFeed
+import de.glut.launcher.data.JellyfinItem
+import de.glut.launcher.data.QuickConnectSession
 import de.glut.launcher.data.LauncherSnapshot
 import de.glut.launcher.data.LoginStep
 import de.glut.launcher.data.MediaWatcher
@@ -62,6 +67,7 @@ import de.glut.launcher.ui.FolderOptions
 import de.glut.launcher.ui.FolderView
 import de.glut.launcher.ui.FontChoice
 import de.glut.launcher.ui.HomeScreen
+import de.glut.launcher.ui.JellyfinState
 import de.glut.launcher.ui.ListPicker
 import de.glut.launcher.ui.LocalAccent
 import de.glut.launcher.ui.PickItem
@@ -143,6 +149,13 @@ class MainActivity : ComponentActivity() {
     private var systemStatus by mutableStateOf<String?>(null)
     private var settingsPage by mutableStateOf(SettingsPage.ROOT)
     private var rootChecked = false
+    private lateinit var jellyfin: Jellyfin
+    private var jellyfinFeed by mutableStateOf(JellyfinFeed.CONTINUE)
+    private var jellyfinItems by mutableStateOf<Map<JellyfinFeed, List<JellyfinItem>>>(emptyMap())
+    private var jellyfinLoading by mutableStateOf(false)
+    private var jellyfinError by mutableStateOf<String?>(null)
+    private var jellyfinLoadedAt = 0L
+    private var quickConnectJob: kotlinx.coroutines.Job? = null
     private var screensaverActive by mutableStateOf(false)
     private var screenTimeoutMinutes by mutableStateOf(5)
     private var screensaverFiles by mutableStateOf(0)
@@ -165,6 +178,8 @@ class MainActivity : ComponentActivity() {
         repository = AppRepository(this)
         homeAssistant = HomeAssistant(prefs)
         wifi = WifiControl(this)
+        jellyfin = Jellyfin(prefs)
+        applyIconPack()
         bluetooth = BluetoothControl(this) {
             btEnabled = bluetooth.enabled
             btScanning = bluetooth.scanning
@@ -231,6 +246,8 @@ class MainActivity : ComponentActivity() {
                 focusKey = focusKey,
                 smartHome = smartHome,
                 nowPlaying = media.nowPlaying,
+                jellyfin = jellyfinState(),
+                showAmazonHome = !onlyLauncher,
                 onMediaOpen = { media.nowPlaying?.let { launchPackage(it.packageName) } },
                 onMediaPlayPause = { media.playPause() },
                 onMediaNext = { media.next() },
@@ -240,6 +257,9 @@ class MainActivity : ComponentActivity() {
                 onOpenFolder = { overlay = Overlay.FolderOpen(it.id) },
                 onFolderMenu = { overlay = Overlay.FolderMenu(it.id) },
                 onSmartHome = ::activateEntity,
+                onJellyfinOpen = ::openJellyfin,
+                onJellyfinFeed = { jellyfinFeed = it },
+                onJellyfinSetup = { openSettings(SettingsPage.JELLYFIN) },
                 onOpenApps = { screen = Screen.APPS },
                 onOpenMenu = { openSettings() },
                 onOpenSearch = { screen = Screen.SEARCH },
@@ -247,7 +267,6 @@ class MainActivity : ComponentActivity() {
                 onOpenWifi = { if (onlyLauncher) openWifiPage() else openWifi() },
                 onOpenProfile = { if (onlyLauncher) openUsersPage() else openProfiles() },
                 onOpenSettings = { if (onlyLauncher) openSettings(SettingsPage.SYSTEM) else startAmazonSettings(Intent(Settings.ACTION_SETTINGS)) },
-                onOpenBluetooth = { if (onlyLauncher) openBluetoothPage() else openBluetooth() },
                 onOpenAmazonHome = ::openAmazonHome,
             )
             Screen.APPS -> AppsScreen(
@@ -499,6 +518,7 @@ class MainActivity : ComponentActivity() {
         media.start()
         endKinoMode()
         refreshSmartHome()
+        refreshJellyfin()
         autoCheckUpdate()
     }
 
@@ -543,6 +563,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         runCatching { unregisterReceiver(packageReceiver) }
         bluetooth.stop()
+        quickConnectJob?.cancel()
         media.stop()
         super.onDestroy()
     }
@@ -818,6 +839,120 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    // --- Jellyfin ---
+
+    private fun applyIconPack() {
+        val pack = prefs.iconPack.takeIf { it.isNotBlank() }?.let { runCatching { IconPack(this, it) }.getOrNull() }
+        repository.setIconPack(pack)
+    }
+
+    private fun jellyfinFeeds() = listOfNotNull(
+        JellyfinFeed.CONTINUE.takeIf { prefs.jellyfinContinue },
+        JellyfinFeed.NEW.takeIf { prefs.jellyfinNew },
+        JellyfinFeed.RECOMMENDED.takeIf { prefs.jellyfinRecommended },
+    )
+
+    private fun jellyfinState(): JellyfinState {
+        val feeds = jellyfinFeeds()
+        // Ist die gewählte Liste leer (z. B. nichts zum Weiterschauen), zeigen wir die erste mit Inhalt.
+        val feed = feeds.firstOrNull { it == jellyfinFeed && jellyfinItems[it].orEmpty().isNotEmpty() }
+            ?: feeds.firstOrNull { jellyfinItems[it].orEmpty().isNotEmpty() }
+            ?: feeds.firstOrNull()
+            ?: jellyfinFeed
+        return JellyfinState(
+            enabled = prefs.jellyfinEnabled,
+            connected = prefs.jellyfinConnected,
+            feeds = feeds,
+            feed = feed,
+            items = jellyfinItems[feed].orEmpty(),
+            loading = jellyfinLoading,
+            error = jellyfinError,
+        )
+    }
+
+    /** Lädt die Vorschläge neu, höchstens alle fünf Minuten (oder sofort mit [force]). */
+    private fun refreshJellyfin(force: Boolean = false) {
+        if (!prefs.jellyfinEnabled || !prefs.jellyfinConnected || jellyfinLoading) return
+        val fresh = SystemClock.elapsedRealtime() - jellyfinLoadedAt < 5 * 60_000L
+        if (!force && fresh && jellyfinItems.values.any { it.isNotEmpty() }) return
+        jellyfinLoading = true
+        jellyfinError = null
+        lifecycleScope.launch {
+            val loaded = mutableMapOf<JellyfinFeed, List<JellyfinItem>>()
+            var failure: String? = null
+            for (feed in jellyfinFeeds()) {
+                runCatching { jellyfin.items(feed, prefs.jellyfinCount) }
+                    .onSuccess { loaded[feed] = it }
+                    .onFailure { failure = it.message ?: t("Jellyfin nicht erreichbar", "Jellyfin not reachable") }
+            }
+            jellyfinItems = loaded
+            jellyfinError = if (loaded.values.all { it.isEmpty() }) failure else null
+            jellyfinLoadedAt = SystemClock.elapsedRealtime()
+            jellyfinLoading = false
+        }
+    }
+
+    /** Öffnet die Jellyfin-App (eine feste Verknüpfung zu einem Titel gibt es dort nicht). */
+    private fun openJellyfin(item: JellyfinItem) {
+        val pkg = apps.firstOrNull { it.packageName.contains("jellyfin", ignoreCase = true) || it.label.contains("Jellyfin", ignoreCase = true) }
+        if (pkg != null) launchApp(pkg) else toast(t("Jellyfin-App nicht gefunden: „${item.title}“", "Jellyfin app not found: “${item.title}”"))
+    }
+
+    private fun startJellyfinLogin() {
+        if (prefs.jellyfinUrl.isBlank()) {
+            toast(t("Bitte zuerst die Server-Adresse eingeben.", "Please enter the server address first."))
+            return
+        }
+        overlay = Overlay.Input(t("Benutzername", "Username"), "", t("Jellyfin-Benutzer", "Jellyfin user")) { user ->
+            overlay = Overlay.Input(t("Passwort", "Password"), "", t("Passwort", "Password"), password = true) { password ->
+                systemStatus = t("Melde an …", "Signing in …")
+                lifecycleScope.launch {
+                    systemStatus = runCatching { jellyfin.login(prefs.jellyfinUrl, user, password) }
+                        .fold({ t("Angemeldet.", "Signed in.") }, { it.message ?: t("Anmeldung fehlgeschlagen.", "Sign-in failed.") })
+                    refreshJellyfin(force = true)
+                }
+            }
+        }
+    }
+
+    /** Quick Connect: Code anzeigen, im Hintergrund auf die Bestätigung warten (bis zu drei Minuten). */
+    private fun startQuickConnect() {
+        if (prefs.jellyfinUrl.isBlank()) {
+            toast(t("Bitte zuerst die Server-Adresse eingeben.", "Please enter the server address first."))
+            return
+        }
+        quickConnectJob?.cancel()
+        quickConnectJob = lifecycleScope.launch {
+            val session: QuickConnectSession = runCatching { jellyfin.quickConnectStart(prefs.jellyfinUrl) }.getOrElse {
+                systemStatus = t("Quick Connect nicht möglich: ", "Quick Connect failed: ") + (it.message ?: "")
+                return@launch
+            }
+            val dialog = Overlay.Picker(
+                title = t("Quick-Connect-Code", "Quick Connect code") + ": " + session.code,
+                subtitle = t(
+                    "In einer angemeldeten Jellyfin-App: Profil → Quick Connect, dann diesen Code eingeben.",
+                    "In a signed-in Jellyfin app: profile → Quick Connect, then enter this code.",
+                ),
+                items = listOf(PickItem("cancel", t("Abbrechen", "Cancel"))),
+                isSelected = { false },
+                onSelect = { quickConnectJob?.cancel(); overlay = null },
+            )
+            overlay = dialog
+            repeat(60) {
+                kotlinx.coroutines.delay(3000)
+                val done = runCatching { jellyfin.quickConnectPoll(prefs.jellyfinUrl, session) }.getOrDefault(false)
+                if (done) {
+                    if (overlay === dialog) overlay = null
+                    systemStatus = t("Angemeldet als ${prefs.jellyfinUserName}.", "Signed in as ${prefs.jellyfinUserName}.")
+                    refreshJellyfin(force = true)
+                    return@launch
+                }
+            }
+            if (overlay === dialog) overlay = null
+            systemStatus = t("Quick Connect abgelaufen.", "Quick Connect expired.")
+        }
+    }
+
     private fun toggleScreensaver() {
         if (!rootAvailable) {
             systemStatus = t("Den Bildschirmschoner ersetzen braucht Root.", "Replacing the screensaver needs root.")
@@ -957,6 +1092,39 @@ class MainActivity : ComponentActivity() {
                     SystemControl.setSoundEffects(!soundEffects)
                     soundEffects = SystemControl.soundEffects(this@MainActivity)
                 }
+            }
+            SettingsAction.ICON_PACK -> {
+                val packs = IconPack.installed(this)
+                overlay = Overlay.Picker(
+                    title = t("Icon-Pack", "Icon pack"),
+                    subtitle = if (packs.isEmpty()) t("Kein Icon-Pack installiert. Installiere eines (ADW/Nova-Format), dann erscheint es hier.", "No icon pack installed. Install one (ADW/Nova format) and it shows up here.") else null,
+                    items = listOf(PickItem("", t("Standard (Symbole der Apps)", "Default (app icons)"))) + packs.map { PickItem(it.packageName, it.label) },
+                    isSelected = { it == prefs.iconPack },
+                    onSelect = { pkg ->
+                        prefs.iconPack = pkg
+                        applyIconPack()
+                        overlay = null
+                    },
+                )
+            }
+            SettingsAction.JELLYFIN_URL -> overlay = Overlay.Input(
+                title = t("Jellyfin-Adresse", "Jellyfin address"),
+                initial = prefs.jellyfinUrl,
+                hint = t("z. B. 192.168.1.20:8096", "e.g. 192.168.1.20:8096"),
+            ) { url ->
+                if (url.isNotBlank()) lifecycleScope.launch {
+                    systemStatus = t("Prüfe Server …", "Checking server …")
+                    systemStatus = runCatching { jellyfin.ping(url) }
+                        .onSuccess { prefs.jellyfinUrl = Jellyfin.normalize(url) }
+                        .fold({ t("Erreicht: $it.", "Reached: $it.") }, { it.message ?: t("Server nicht erreichbar.", "Server not reachable.") })
+                }
+            }
+            SettingsAction.JELLYFIN_LOGIN -> startJellyfinLogin()
+            SettingsAction.JELLYFIN_QUICK -> startQuickConnect()
+            SettingsAction.JELLYFIN_LOGOUT -> {
+                prefs.jellyfinLogout()
+                jellyfinItems = emptyMap()
+                systemStatus = t("Abgemeldet.", "Signed out.")
             }
             SettingsAction.SCREENSAVER_TOGGLE -> toggleScreensaver()
             SettingsAction.SCREENSAVER_TIMEOUT -> lifecycleScope.launch {

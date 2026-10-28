@@ -2,6 +2,7 @@ package de.glut.launcher.ui
 
 import de.glut.launcher.t
 import de.glut.launcher.uiLocale
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -109,3 +113,14 @@ fun Modifier.bleed(horizontal: Dp, vertical: Dp): Modifier = layout { measurable
 /** Platz für Schatten rund um Kachelreihen. */
 val ShadowBleedX = 24.dp
 val ShadowBleedY = 20.dp
+
+/**
+ * „Liquid Glass“: halbdurchsichtige Fläche mit hellem Rand oben. Echte Hintergrund-Unschärfe gibt es
+ * auf dem Stick nicht, die Farbflächen des Hintergrunds schimmern aber durch.
+ */
+fun Modifier.glass(shape: Shape, strong: Boolean = false): Modifier {
+    val tint = if (Theme.isLight) Color.Black else Color.White
+    return this
+        .background(Brush.linearGradient(listOf(tint.copy(alpha = if (strong) 0.26f else 0.18f), tint.copy(alpha = 0.06f))), shape)
+        .border(1.dp, Brush.verticalGradient(listOf(tint.copy(alpha = 0.5f), tint.copy(alpha = 0.08f))), shape)
+}
