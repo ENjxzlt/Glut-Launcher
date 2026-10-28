@@ -78,7 +78,11 @@ fun SquareAppTile(
                 val icon = current?.icon
                 val logo = current?.logo
                 val banner = current?.banner
+                val plate = current?.iconBackground
                 when {
+                    icon != null && plate != null -> Box(Modifier.fillMaxSize().background(plate), contentAlignment = Alignment.Center) {
+                        Image(icon, app.label, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(size * (current?.iconPadding ?: 0.16f)))
+                    }
                     icon != null -> Image(icon, app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     logo != null -> Image(logo, app.label, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(size * 0.14f))
                     banner != null -> Image(banner, app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
